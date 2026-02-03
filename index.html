@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#064e3b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>YOBE MINING DEVELOPMENT COMPANY</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.webmanifest" />
+
+    <!-- Favicon (Logo) -->
+    <link rel="icon" href="./assets/Logo.jpeg" />
+    <link rel="apple-touch-icon" href="./assets/Logo.jpeg" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Real map dots -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Courier+Prime:wght@400;700&display=swap");
+
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        overflow-x: hidden;
+        overscroll-behavior-y: none;
+      }
+      a,
+      button {
+        touch-action: manipulation;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+      .font-serif {
+        font-family: "Playfair Display", serif;
+      }
+      .font-mono-security {
+        font-family: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, Monaco,
+          Consolas, monospace;
+      }
+
+      @keyframes fade-in-up {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-fade-in-up {
+        animation: fade-in-up 0.45s ease-out forwards;
+      }
+
+      @keyframes slide-in-right {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .animate-slide-in-right {
+        animation: slide-in-right 0.35s ease-out forwards;
+      }
+
+      .blink-red {
+        animation: blink 1.5s infinite;
+      }
+      @keyframes blink {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .custom-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 999px;
+      }
+
+      .security-guilloche {
+        background-image: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(16, 185, 129, 0.05) 10px,
+            rgba(16, 185, 129, 0.05) 20px
+          ),
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 10px,
+            rgba(16, 185, 129, 0.05) 10px,
+            rgba(16, 185, 129, 0.05) 20px
+          );
+      }
+      .hologram-strip {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0) 30%,
+          rgba(255, 255, 255, 0.35) 50%,
+          rgba(255, 255, 255, 0) 70%
+        );
+        background-size: 200% 200%;
+        animation: hologram-shine 3s infinite linear;
+      }
+      @keyframes hologram-shine {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      .cert-watermark {
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140' opacity='0.05'><text x='0' y='70' font-size='22' fill='gray'>AUTHENTIC</text></svg>");
+        background-repeat: repeat;
+      }
+
+      #md-map {
+        width: 100%;
+        height: 100%;
+      }
+      .leaflet-container {
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+      }
+    </style>
+  </head>
+
+  <body
+    class="bg-gray-50 text-gray-800 antialiased selection:bg-green-200 selection:text-green-900"
+  >
+    <div id="app" class="min-h-[100dvh] flex flex-col"></div>
+
+    <script>
+      // PWA service worker registration (requires HTTPS or localhost).
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("service-worker.js")
+            .catch(console.error);
+        });
+      }
+    </script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
