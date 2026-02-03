@@ -2320,8 +2320,8 @@
   // Pages
   // =========================
   function renderLanding() {
-    const statRegistered = "2,500+";
-    const statCompanies = "150+";
+    const statRegistered = "20+";
+    const statCompanies = "10+";
     const statLgas = String(LGAs.length);
     const statCompliance = "98%";
 
@@ -2367,7 +2367,7 @@
       '<div class="text-4xl md:text-5xl font-black text-emerald-900 tracking-tight">' +
       statCompanies +
       "</div>" +
-      '<div class="mt-2 text-sm font-bold text-gray-500 uppercase tracking-widest">Companies</div>' +
+      '<div class="mt-2 text-sm font-bold text-gray-500 uppercase tracking-widest">Minerals</div>' +
       "</div>" +
       "<div>" +
       '<div class="text-4xl md:text-5xl font-black text-emerald-900 tracking-tight">' +
