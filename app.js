@@ -152,7 +152,7 @@
   const translations = {
     en: {
       appTitle: "YOBE MINING DEVELOPMENT COMPANY",
-      subtitle: "Regulating & Empowering Mining Activities",
+      subtitle: "Developing State Solid Minerals & Empowering Mining Activities",
       welcome: "Welcome",
       portalEntry: "Enter Portal",
       adminLogin: "Staff Login",
@@ -2332,7 +2332,7 @@
       '<div class="absolute inset-0 bg-gradient-to-r from-emerald-900/90 to-emerald-800/80"></div>' +
       '<div class="relative max-w-6xl mx-auto px-6 py-24 md:py-32 flex flex-col md:flex-row items-center">' +
       '<div class="md:w-1/2 mb-10 md:mb-0">' +
-      '<div class="inline-block px-3 py-1 bg-yellow-400 text-emerald-900 text-xs font-bold rounded-full mb-4 uppercase tracking-wider">Official Portal</div>' +
+      '<div class="inline-block px-3 py-1 bg-yellow-400 text-emerald-900 text-xs font-bold rounded-full mb-4 uppercase tracking-wider">Mining Dasboard</div>' +
       '<h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">' +
       t("subtitle") +
       "</h1>" +
@@ -2399,17 +2399,17 @@
       '<div class="text-yellow-400">' +
       Icon("pickaxe", "w-6 h-6") +
       "</div>" +
-      '<div class="text-xl font-black">Yobe State Mining Company</div>' +
+      '<div class="text-xl font-black">YOBE MINING DEVELOPMENT COMPANY</div>' +
       "</div>" +
       '<p class="mt-4 text-emerald-100/90 text-sm leading-relaxed">' +
-      "Official platform for regulating mining activities within Yobe State, ensuring safety, compliance, and economic growth." +
+      "Mining dashboard for developing solid minerals, regulating mining activities within Yobe State, ensuring safety, compliance, and economic growth." +
       "</p>" +
       "</div>" +
 
       "<div>" +
       '<div class="text-yellow-400 font-black uppercase tracking-widest text-sm">Quick Links</div>' +
       '<div class="mt-4 space-y-3 text-emerald-50/90 font-medium">' +
-      '<button onclick="setView(\'artisan-form\')" class="block hover:text-white hover:underline text-left">Apply for License</button>' +
+      '<button onclick="setView(\'artisan-form\')" class="block hover:text-white hover:underline text-left">Registration</button>' +
       '<button onclick="setView(\'status-check\')" class="block hover:text-white hover:underline text-left">Check Status</button>' +
       '<button onclick="setView(\'renew-check\')" class="block hover:text-white hover:underline text-left">Renewals</button>' +
       '<button onclick="setView(\'miner-portal\')" class="block hover:text-white hover:underline text-left">Digital Mining Suite</button>' +
@@ -2424,7 +2424,8 @@
       '<div class="text-yellow-400 mt-0.5">' +
       Icon("map-pin", "w-5 h-5") +
       "</div>" +
-      '<div>No. 12 Bukar Abba Ibrahim Way, Damaturu, Yobe State.</div>' +
+      '<div>Head Office: Beside Bra Bra Housing Estate, Bye - Pass Damaturu.</div>' +
+      '<div>Abuja Office: Floor 5, Yobe Investment House, Central Business District Abuja.</div>' +
       "</div>" +
       '<div class="flex items-start gap-3">' +
       '<div class="text-yellow-400 mt-0.5">' +
@@ -2439,7 +2440,7 @@
       '<div class="mt-10 pt-6 border-t border-white/10 text-center text-emerald-100/80 text-sm">' +
       "© " +
       year +
-      " Yobe State Mining Company. All rights reserved." +
+      " YOBE MINING DEVELOPMENT COMPANY. All rights reserved." +
       "</div>" +
       "</div>" +
       "</footer>"
