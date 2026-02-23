@@ -145,8 +145,10 @@
     const u = String(unit || "").toLowerCase();
     const n = Number(qty || 0);
     if (u === "ton") return n === 1 ? "Ton" : "Tons";
+    if (u === "kg") return n === 1 ? "Kg" : "Kgs";
     if (u === "gram") return n === 1 ? "Gram" : "Grams";
     if (u === "ounce") return n === 1 ? "Ounce" : "Ounces";
+    if (u === "m3") return "m3";
     if (u === "lb") return n === 1 ? "lb" : "lbs";
     return unit || "Unit";
   }
