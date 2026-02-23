@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = "yobe-mining-pwa-v7";
+const CACHE_NAME = "yobe-mining-pwa-v8";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -91,7 +91,30 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Assets: cache-first with background refresh.
+  // App shell assets that must stay fresh (avoid stale mineral rates and logic).
+  const path = url.pathname || "";
+  const isAppShellScript =
+    path.endsWith("/app.js") ||
+    path.endsWith("/index.html") ||
+    path.endsWith("/service-worker.js");
+
+  if (isAppShellScript) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        try {
+          const fresh = await fetch(req);
+          cache.put(req, fresh.clone());
+          return fresh;
+        } catch (e) {
+          return (await cache.match(req)) || (await cache.match("./index.html"));
+        }
+      })()
+    );
+    return;
+  }
+
+  // Other assets: cache-first with background refresh.
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
