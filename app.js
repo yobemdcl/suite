@@ -347,6 +347,15 @@
     ui: {
       mobileMenuOpen: false,
     },
+    dialog: {
+      open: false,
+      title: "",
+      message: "",
+      mode: "alert",
+      okText: "OK",
+      cancelText: "Cancel",
+      resolver: null,
+    },
 
     pwa: {
       isIOS: isIOS(),
@@ -428,6 +437,60 @@
 
   // PWA install prompt (Android/Chrome) + iOS guidance.
   let deferredInstallPrompt = null;
+  const escHtml = (s) =>
+    String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  window.closeDialog = function (answer) {
+    const resolver = state.dialog?.resolver;
+    state.dialog.open = false;
+    state.dialog.title = "";
+    state.dialog.message = "";
+    state.dialog.mode = "alert";
+    state.dialog.okText = "OK";
+    state.dialog.cancelText = "Cancel";
+    state.dialog.resolver = null;
+    render();
+    if (typeof resolver === "function") resolver(!!answer);
+  };
+
+  window.showDialog = function (opts) {
+    const o = opts || {};
+    state.dialog.open = true;
+    state.dialog.title = String(o.title || (o.mode === "confirm" ? "Confirm" : "Notice"));
+    state.dialog.message = String(o.message || "");
+    state.dialog.mode = o.mode === "confirm" ? "confirm" : "alert";
+    state.dialog.okText = String(o.okText || "OK");
+    state.dialog.cancelText = String(o.cancelText || "Cancel");
+    state.dialog.resolver = typeof o.resolver === "function" ? o.resolver : null;
+    render();
+  };
+
+  window.uiAlert = function (message, title) {
+    window.showDialog({
+      mode: "alert",
+      title: title || "Notice",
+      message: String(message || ""),
+      okText: "OK",
+    });
+  };
+
+  window.uiConfirm = function (message, title, okText, cancelText) {
+    return new Promise((resolve) => {
+      window.showDialog({
+        mode: "confirm",
+        title: title || "Confirm",
+        message: String(message || ""),
+        okText: okText || "Continue",
+        cancelText: cancelText || "Cancel",
+        resolver: resolve,
+      });
+    });
+  };
 
   function refreshStandaloneFlags() {
     state.pwa.isStandalone = isStandalone();
@@ -463,14 +526,14 @@
     if (state.ui) state.ui.mobileMenuOpen = false;
 
     if (state.pwa.isIOS) {
-      alert(
+      uiAlert(
         'To install on iPhone/iPad: tap Share, then "Add to Home Screen".'
       );
       return;
     }
 
     if (!deferredInstallPrompt) {
-      alert(
+      uiAlert(
         'Install prompt is not ready yet. Wait a few seconds and try again. If it still does not appear, open your browser menu and tap "Install app" or "Add to Home screen".'
       );
       return;
@@ -1243,35 +1306,37 @@
     const data = state.renewalStatus && state.renewalStatus.data;
     if (!data) return;
 
-    if (
-      confirm(
-        "Confirm that you have transferred the funds? This will log a payment record."
-      )
-    ) {
-      const amount = 20000;
-      const updatedData = {
-        ...data,
-        paymentStatus: "Paid",
-        paidAmount: amount,
-        expiryDate: iso(addYears(1)),
-        lastPaymentDate: iso(now()),
-        staffAction: "RenewalPayment",
-        timestamp: new Date().toLocaleString(),
-      };
+    const confirmed = await uiConfirm(
+      "Confirm that you have transferred the funds? This will log a payment record.",
+      "Confirm Payment",
+      "Confirm",
+      "Cancel"
+    );
+    if (!confirmed) return;
 
-      // update local if exists
-      const idx = state.applications.findIndex((a) => a.id === updatedData.id);
-      if (idx >= 0) state.applications[idx] = { ...state.applications[idx], ...updatedData };
-      persistLocal();
+    const amount = 20000;
+    const updatedData = {
+      ...data,
+      paymentStatus: "Paid",
+      paidAmount: amount,
+      expiryDate: iso(addYears(1)),
+      lastPaymentDate: iso(now()),
+      staffAction: "RenewalPayment",
+      timestamp: new Date().toLocaleString(),
+    };
 
-      await saveToGoogleSheet("Artisans", updatedData);
-      alert("Payment recorded! Your ID is now valid.");
-      window.setView("miner-portal");
+    // update local if exists
+    const idx = state.applications.findIndex((a) => a.id === updatedData.id);
+    if (idx >= 0) state.applications[idx] = { ...state.applications[idx], ...updatedData };
+    persistLocal();
 
-      if (state.currentUserRole === "md") {
-        await loadApplications();
-        await loadMDData();
-      }
+    await saveToGoogleSheet("Artisans", updatedData);
+    uiAlert("Payment recorded! Your ID is now valid.", "Payment Successful");
+    window.setView("miner-portal");
+
+    if (state.currentUserRole === "md") {
+      await loadApplications();
+      await loadMDData();
     }
   };
 
@@ -1316,7 +1381,7 @@
       qrInterval = setInterval(scanQR, 140);
     } catch (err) {
       console.error(err);
-      alert("Camera access denied / unavailable.");
+      uiAlert("Camera access denied or unavailable.");
       window.closeQRScanner();
     }
   }
@@ -1366,7 +1431,7 @@
 
     saveToGoogleSheet("ScanLogs", scanPayload, { action: "append" });
 
-    alert("ID " + parsedId + " scanned.");
+    uiAlert("ID " + parsedId + " scanned.", "Scan Success");
     if (state.currentUserRole === "md") loadMDData();
     window.closeQRScanner();
   }
@@ -1527,7 +1592,9 @@
   // =========================
   window.openExitLog = function () {
     state.exitForm = state.exitForm || { id: "", quantity: "", mineral: "Gypsum" };
-    if (!state.exitForm.mineral) state.exitForm.mineral = "Gypsum";
+    if (!MINERAL_MAP[state.exitForm.mineral]) {
+      state.exitForm.mineral = MINERAL_NAMES[0] || "Gypsum";
+    }
     state.exitLogModal.open = true;
     render();
     setTimeout(updateExitRevenuePreview, 50);
@@ -1538,7 +1605,7 @@
   };
 
   function updateExitRevenuePreview() {
-    const qty = Number(state.exitForm?.quantity || 0);
+    const qty = Number(String(state.exitForm?.quantity ?? "").replace(/,/g, "")) || 0;
     const mineral = String(state.exitForm?.mineral || "");
 
     const meta = mineralMeta(mineral);
@@ -1561,23 +1628,32 @@
 
   window.submitExitLog = async function () {
     const id = String(state.exitForm?.id || "").trim().toUpperCase();
-    const qty = Number(state.exitForm?.quantity || 0);
+    const qtyRaw = String(state.exitForm?.quantity ?? "").trim();
+    const qty = Number(qtyRaw.replace(/,/g, ""));
     const mineral = String(state.exitForm?.mineral || "").trim();
 
     const meta = mineralMeta(mineral);
     const unitPrice = Number(meta.price || 0);
     const fixedUnit = meta.unit;
 
-    if (!id || !mineral || !qty || qty <= 0) {
-      alert("All fields required (Quantity must be > 0)");
+    if (!id) {
+      uiAlert("Artisan ID is required.");
+      return;
+    }
+    if (!mineral) {
+      uiAlert("Mineral type is required.");
+      return;
+    }
+    if (!Number.isFinite(qty) || qty <= 0) {
+      uiAlert("Quantity must be greater than 0.");
       return;
     }
     if (!enforceArtisanOnly(id)) {
-      alert("Exit Log ID must be an Artisan ID (ART-xxxxxx).");
+      uiAlert("Exit Log ID must be an Artisan ID (ART-xxxxxx).");
       return;
     }
     if (!unitPrice) {
-      alert("Selected mineral has no configured price.");
+      uiAlert("Selected mineral has no configured price.");
       return;
     }
 
@@ -1650,7 +1726,13 @@
   };
 
   window.deleteApplication = async function (id) {
-    if (!confirm("Are you sure you want to delete this record? This action cannot be undone."))
+    const confirmed = await uiConfirm(
+      "Are you sure you want to delete this record? This action cannot be undone.",
+      "Delete Record",
+      "Delete",
+      "Cancel"
+    );
+    if (!confirmed)
       return;
 
     const existing = state.applications.find((a) => a.id === id);
@@ -1671,7 +1753,7 @@
       }
     }
 
-    alert("Record deleted (or flagged) for: " + id);
+    uiAlert("Record deleted (or flagged) for: " + id, "Delete Complete");
     if (state.currentUserRole === "md") {
       await loadApplications();
       await loadMDData();
@@ -1706,7 +1788,7 @@
       staffAction: "StatusUpdate",
       timestamp: new Date().toLocaleString(),
     });
-    alert("Record " + id + " status updated to " + newStatus);
+    uiAlert("Record " + id + " status updated to " + newStatus, "Status Updated");
 
     if (state.currentUserRole === "md") {
       await loadApplications();
@@ -1839,7 +1921,7 @@
 
     const acct = STAFF_ACCOUNTS[pin];
     if (!acct) {
-      alert(
+      uiAlert(
         "Invalid PIN. Use: 1111 (Adams), 2222 (Abba), 4444 (Mustapha), 5555 (Mohammed)."
       );
       if (btn) btn.innerHTML = t("portalEntry");
@@ -2040,7 +2122,7 @@
       link.click();
     } catch (err) {
       console.error("Download failed", err);
-      alert("Could not generate image. Please try again.");
+      uiAlert("Could not generate image. Please try again.");
     } finally {
       try {
         cleanup && cleanup();
@@ -2223,6 +2305,38 @@
     );
   }
 
+  function renderSystemDialog() {
+    if (!state.dialog || !state.dialog.open) return "";
+    const title = escHtml(state.dialog.title || "Notice");
+    const message = escHtml(state.dialog.message || "");
+    const okText = escHtml(state.dialog.okText || "OK");
+    const cancelText = escHtml(state.dialog.cancelText || "Cancel");
+    const isConfirm = state.dialog.mode === "confirm";
+
+    return (
+      '<div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onclick="if(event.target===this) closeDialog(false)">' +
+      '<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5">' +
+      '<div class="text-lg font-black text-gray-900">' +
+      title +
+      "</div>" +
+      '<div class="text-sm text-gray-700 mt-2 leading-relaxed">' +
+      message +
+      "</div>" +
+      '<div class="mt-5 flex justify-end gap-3">' +
+      (isConfirm
+        ? '<button onclick="closeDialog(false)" class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50">' +
+          cancelText +
+          "</button>"
+        : "") +
+      '<button onclick="closeDialog(true)" class="px-4 py-2 rounded-xl bg-emerald-700 text-white font-bold hover:bg-emerald-800">' +
+      okText +
+      "</button>" +
+      "</div>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
   function renderExitLogModal() {
     if (!state.exitLogModal.open) return "";
     return (
@@ -2254,7 +2368,7 @@
       '<div class="flex gap-2">' +
       '<input type="number" id="exit-amount" value="' +
       String(state.exitForm?.quantity || "") +
-      '" oninput="state.exitForm.quantity = this.value; updateExitRevenuePreview()" class="w-2/3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="0">' +
+      '" oninput="state.exitForm.quantity = this.value; updateExitRevenuePreview()" class="w-2/3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="0" min="0.0001" step="any" inputmode="decimal">' +
       '<div id="exit-unit-display" class="w-1/3 px-2 py-3 bg-gray-100 border border-gray-200 rounded-xl text-center text-sm font-bold text-gray-700 flex items-center justify-center">Unit</div>' +
       '<input type="hidden" id="exit-unit" value="ton">' +
       "</div>" +
@@ -3789,6 +3903,7 @@
       renderExitLogModal() +
       renderQRScannerModal() +
       renderCameraModal() +
+      renderSystemDialog() +
       renderIOSInstallHint() +
       renderSiteFooter();
 
@@ -3836,7 +3951,7 @@
     // PWA + manifest + service worker + camera permissions + CORS won't work reliably on file://
     // The app must be served over http(s).
     setTimeout(() => {
-      alert("Open this app via http://localhost (or HTTPS). Do not open index.html with file://.");
+      uiAlert("Open this app via http://localhost (or HTTPS). Do not open index.html with file://.");
     }, 50);
   }
   render();
