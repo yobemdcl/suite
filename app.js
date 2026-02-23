@@ -470,7 +470,9 @@
     }
 
     if (!deferredInstallPrompt) {
-      alert("Install prompt not available yet. Please try again from Home.");
+      alert(
+        'Install prompt is not ready yet. Wait a few seconds and try again. If it still does not appear, open your browser menu and tap "Install app" or "Add to Home screen".'
+      );
       return;
     }
 
@@ -2109,11 +2111,7 @@
   }
 
   function renderHeader() {
-    const isMobileViewport = !!window.matchMedia?.("(max-width: 767px)")?.matches;
-    const isAndroid = /android/i.test(navigator.userAgent || "");
-    const showInstall =
-      !state.pwa.isStandalone &&
-      (state.pwa.canInstall || state.pwa.isIOS || isAndroid || isMobileViewport);
+    const showInstall = !state.pwa.isStandalone && (state.pwa.canInstall || state.pwa.isIOS);
     const mobileMenuOpen = !!(state.ui && state.ui.mobileMenuOpen);
 
     return (
