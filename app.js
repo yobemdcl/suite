@@ -2996,8 +2996,6 @@
       t("adminLogin") +
       "</h2>" +
       '<div class="mt-2 text-[11px] text-gray-400">Enter staff PIN. Location permission will be requested for field tracking.</div>' +
-      '<div class="mt-2 text-[11px] text-gray-500">Use the last 4 digits of each staff phone number as PIN.</div>' +
-      '<div class="mt-2 text-[11px] text-gray-500 font-mono">Umar Umar Muhammad 3963 • Engr Mohammed Bello 1867 • Mubarak Hussaini Tinja 2651 • Suleiman Ibrahim Gimba 5722 • Executive 3333</div>' +
       "</div>" +
       '<form onsubmit="handleAdminLogin(event)" class="space-y-4">' +
       "<div>" +
