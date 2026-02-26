@@ -13,10 +13,10 @@
   // STAFF LOGIN (4 staff)
   // =========================
   const STAFF_ACCOUNTS = {
-    "1111": { name: "Adams", role: "staff" },
-    "2222": { name: "Abba", role: "staff" },
-    "4444": { name: "Mustapha", role: "staff" },
-    "5555": { name: "Mohammed", role: "staff" },
+    "3963": { name: "Umar Umar Muhammad", role: "staff" },
+    "1867": { name: "Engr Mohammed Bello", role: "staff" },
+    "2651": { name: "Mubarak Hussaini Tinja", role: "staff" },
+    "5722": { name: "Suleiman Ibrahim Gimba", role: "staff" },
     "3333": { name: "Executive", role: "md" },
   };
 
@@ -1922,7 +1922,7 @@
     const acct = STAFF_ACCOUNTS[pin];
     if (!acct) {
       uiAlert(
-        "Invalid PIN. Use: 1111 (Adams), 2222 (Abba), 4444 (Mustapha), 5555 (Mohammed)."
+        "Invalid PIN. Use last 4 digits of phone: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722)."
       );
       if (btn) btn.innerHTML = t("portalEntry");
       return;
@@ -2996,7 +2996,8 @@
       t("adminLogin") +
       "</h2>" +
       '<div class="mt-2 text-[11px] text-gray-400">Enter staff PIN. Location permission will be requested for field tracking.</div>' +
-      '<div class="mt-2 text-[11px] text-gray-500 font-mono">Adams 1111 • Abba 2222 • Mustapha 4444 • Mohammed 5555 • Executive 3333</div>' +
+      '<div class="mt-2 text-[11px] text-gray-500">Use the last 4 digits of each staff phone number as PIN.</div>' +
+      '<div class="mt-2 text-[11px] text-gray-500 font-mono">Umar Umar Muhammad 3963 • Engr Mohammed Bello 1867 • Mubarak Hussaini Tinja 2651 • Suleiman Ibrahim Gimba 5722 • Executive 3333</div>' +
       "</div>" +
       '<form onsubmit="handleAdminLogin(event)" class="space-y-4">' +
       "<div>" +
