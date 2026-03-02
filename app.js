@@ -701,6 +701,70 @@
     return "";
   }
 
+  async function isPhoneAlreadyRegistered(phoneInput, excludeId) {
+    const key = normalizePhoneKey(phoneInput);
+    if (!key) return false;
+    const skipId = String(excludeId || "").trim();
+
+    const localHas = safeArray(state.applications).some((a) => {
+      const id = String(a?.id || "").trim();
+      const deleted = String(a?.deleted || a?.Deleted || "").toLowerCase() === "true";
+      if (deleted) return false;
+      if (skipId && id === skipId) return false;
+      return normalizePhoneKey(a?.phone || a?.Phone || "") === key;
+    });
+    if (localHas) return true;
+
+    const all = await callBackend({ action: "readSheet", sheet: "Artisans" });
+    if (!(all && all.result === "success" && Array.isArray(all.data))) return false;
+
+    return all.data.some((d) => {
+      const id = String(d?.id || d?.ID || d?.Id || "").trim();
+      const deleted = String(d?.deleted || d?.Deleted || "").toLowerCase() === "true";
+      if (deleted) return false;
+      if (skipId && id === skipId) return false;
+      return normalizePhoneKey(d?.phone || d?.Phone || "") === key;
+    });
+  }
+
+  function statusRank(rec) {
+    const s = String(pickFirst(rec, ["status", "Status"]) || "").toLowerCase();
+    if (s === "approved") return 3;
+    if (s === "pending") return 2;
+    if (s === "rejected") return 1;
+    return 0;
+  }
+
+  function recencyTime(rec) {
+    const keys = [
+      "updatedAt",
+      "UpdatedAt",
+      "timestamp",
+      "Timestamp",
+      "createdAt",
+      "CreatedAt",
+      "issueDate",
+      "IssueDate",
+    ];
+    for (const k of keys) {
+      const d = tryParseDateTime(rec && rec[k]);
+      if (d) return d.getTime();
+    }
+    return 0;
+  }
+
+  function pickBestRecord(records) {
+    const arr = safeArray(records);
+    if (!arr.length) return null;
+    return arr
+      .slice()
+      .sort((a, b) => {
+        const byStatus = statusRank(b) - statusRank(a);
+        if (byStatus !== 0) return byStatus;
+        return recencyTime(b) - recencyTime(a);
+      })[0];
+  }
+
   function normalizeSelection(input, fallback) {
     const arr = Array.isArray(input) ? input : String(input || "").split(/[;,|]/);
     const set = new Set(
@@ -1333,7 +1397,10 @@
     if (phoneKey) {
       const all = await callBackend({ action: "readSheet", sheet: "Artisans" });
       if (all && all.result === "success" && Array.isArray(all.data)) {
-        return all.data.find((d) => normalizePhoneKey(d.phone || d.Phone || "") === phoneKey) || null;
+        const matches = all.data.filter(
+          (d) => normalizePhoneKey(d.phone || d.Phone || "") === phoneKey
+        );
+        return pickBestRecord(matches);
       }
     }
     return null;
@@ -1363,11 +1430,12 @@
 
     // Prefer backend (fresh status), fallback to local cache.
     const remote = await findRemoteArtisanByIdOrPhone(input);
-    const local = state.applications.find(
+    const localMatches = state.applications.filter(
       (a) =>
         (idCandidate && String(a.id || "").toUpperCase() === idCandidate) ||
         (phoneKey && normalizePhoneKey(a.phone) === phoneKey)
     );
+    const local = pickBestRecord(localMatches);
     const found = remote || local;
     btn.innerText = "Check";
 
@@ -2037,6 +2105,15 @@
 
     state.isLoading = true;
     render();
+
+    const duplicatePhone = await isPhoneAlreadyRegistered(state.formData.phone, state.editingId);
+    if (duplicatePhone) {
+      state.isLoading = false;
+      state.error =
+        "Phone number already exists. Please use a different number or update the existing record.";
+      render();
+      return;
+    }
 
     if (state.editingId) {
       const idx = state.applications.findIndex((a) => a.id === state.editingId);
@@ -4233,7 +4310,7 @@
         '<div class="bg-white rounded-2xl shadow-xl p-6 text-center">' +
         '<h2 class="text-xl font-bold text-gray-800 mb-2">Check ID Status</h2>' +
         '<p class="text-xs text-gray-500 mb-3">Enter phone number (recommended) or Artisan ID.</p>' +
-        '<input id="status-input" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="08012345678 or ART-XXXXXX" value="' +
+        '<input id="status-input" type="text" maxlength="11" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="08012345678 or ART-XXXXXX" value="' +
         escHtml(state.statusLookupInput || "") +
         '" oninput="state.statusLookupInput = this.value" />' +
         '<div id="status-msg"></div>' +
