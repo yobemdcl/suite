@@ -767,15 +767,33 @@
       })[0];
   }
 
-  async function resolveRecordByIdMaybe(rec) {
-    const rawId = pickFirst(rec, ["id", "ID", "Id"]);
-    const id = extractArtisanId(rawId);
-    if (!id) return rec;
-    const byId = await callBackend({ action: "search", id });
-    if (byId && byId.result === "success" && byId.data) {
-      return { ...rec, ...byId.data };
-    }
-    return rec;
+  function extractRecordId(rec) {
+    return extractArtisanId(pickFirst(rec, ["id", "ID", "Id", "artisanId", "ArtisanId"]));
+  }
+
+  function pickBestById(rows, id) {
+    const target = extractArtisanId(id);
+    if (!target) return null;
+    const matches = safeArray(rows).filter((r) => extractRecordId(r) === target);
+    return pickBestRecord(matches);
+  }
+
+  function pickBestByPhone(rows, phoneKey) {
+    const key = normalizePhoneKey(phoneKey);
+    if (!key) return null;
+    const matches = safeArray(rows).filter(
+      (r) => normalizePhoneKey(pickFirst(r, ["phone", "Phone"])) === key
+    );
+    if (!matches.length) return null;
+
+    // De-dupe by ID first, then choose best overall record.
+    const byId = new Map();
+    matches.forEach((m) => {
+      const id = extractRecordId(m) || "__no_id__";
+      const prev = byId.get(id);
+      byId.set(id, pickBestRecord([prev, m].filter(Boolean)));
+    });
+    return pickBestRecord(Array.from(byId.values()));
   }
 
   function normalizeSelection(input, fallback) {
@@ -1402,21 +1420,23 @@
     const idCandidate = extractArtisanId(raw);
     const phoneKey = normalizePhoneKey(raw);
 
+    const all = await callBackend({ action: "readSheet", sheet: "Artisans" });
+    if (all && all.result === "success" && Array.isArray(all.data)) {
+      if (idCandidate) {
+        const bestById = pickBestById(all.data, idCandidate);
+        if (bestById) return bestById;
+      }
+      if (phoneKey) {
+        const bestByPhone = pickBestByPhone(all.data, phoneKey);
+        if (bestByPhone) return bestByPhone;
+      }
+      return null;
+    }
+
+    // Fallback to backend ID search if readSheet is unavailable.
     if (idCandidate) {
       const byId = await callBackend({ action: "search", id: idCandidate });
       if (byId && byId.result === "success" && byId.data) return byId.data;
-    }
-
-    if (phoneKey) {
-      const all = await callBackend({ action: "readSheet", sheet: "Artisans" });
-      if (all && all.result === "success" && Array.isArray(all.data)) {
-        const matches = all.data.filter(
-          (d) => normalizePhoneKey(d.phone || d.Phone || "") === phoneKey
-        );
-        if (!matches.length) return null;
-        const resolved = await Promise.all(matches.slice(0, 20).map(resolveRecordByIdMaybe));
-        return pickBestRecord(resolved);
-      }
     }
     return null;
   }
