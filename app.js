@@ -728,7 +728,9 @@
   }
 
   function statusRank(rec) {
-    const s = String(pickFirst(rec, ["status", "Status"]) || "").toLowerCase();
+    const s = String(pickFirst(rec, ["status", "Status"]) || "")
+      .trim()
+      .toLowerCase();
     if (s === "approved") return 3;
     if (s === "pending") return 2;
     if (s === "rejected") return 1;
@@ -763,6 +765,17 @@
         if (byStatus !== 0) return byStatus;
         return recencyTime(b) - recencyTime(a);
       })[0];
+  }
+
+  async function resolveRecordByIdMaybe(rec) {
+    const rawId = pickFirst(rec, ["id", "ID", "Id"]);
+    const id = extractArtisanId(rawId);
+    if (!id) return rec;
+    const byId = await callBackend({ action: "search", id });
+    if (byId && byId.result === "success" && byId.data) {
+      return { ...rec, ...byId.data };
+    }
+    return rec;
   }
 
   function normalizeSelection(input, fallback) {
@@ -1400,7 +1413,9 @@
         const matches = all.data.filter(
           (d) => normalizePhoneKey(d.phone || d.Phone || "") === phoneKey
         );
-        return pickBestRecord(matches);
+        if (!matches.length) return null;
+        const resolved = await Promise.all(matches.slice(0, 20).map(resolveRecordByIdMaybe));
+        return pickBestRecord(resolved);
       }
     }
     return null;
@@ -1428,15 +1443,9 @@
     btn.innerText = "Checking...";
     msgEl.innerText = "";
 
-    // Prefer backend (fresh status), fallback to local cache.
+    // Backend is authoritative for status checks.
     const remote = await findRemoteArtisanByIdOrPhone(input);
-    const localMatches = state.applications.filter(
-      (a) =>
-        (idCandidate && String(a.id || "").toUpperCase() === idCandidate) ||
-        (phoneKey && normalizePhoneKey(a.phone) === phoneKey)
-    );
-    const local = pickBestRecord(localMatches);
-    const found = remote || local;
+    const found = remote;
     btn.innerText = "Check";
 
     if (found) {
