@@ -312,6 +312,46 @@
     "Yusufari",
   ];
 
+  const STATES = [
+    "Abia",
+    "Adamawa",
+    "Akwa Ibom",
+    "Anambra",
+    "Bauchi",
+    "Bayelsa",
+    "Benue",
+    "Borno",
+    "Cross River",
+    "Delta",
+    "Ebonyi",
+    "Edo",
+    "Ekiti",
+    "Enugu",
+    "FCT Abuja",
+    "Gombe",
+    "Imo",
+    "Jigawa",
+    "Kaduna",
+    "Kano",
+    "Katsina",
+    "Kebbi",
+    "Kogi",
+    "Kwara",
+    "Lagos",
+    "Nasarawa",
+    "Niger",
+    "Ogun",
+    "Ondo",
+    "Osun",
+    "Oyo",
+    "Plateau",
+    "Rivers",
+    "Sokoto",
+    "Taraba",
+    "Yobe",
+    "Zamfara",
+  ];
+
   const iso = (d) => new Date(d).toISOString().split("T")[0];
   const now = () => new Date();
   const addYears = (years) => {
@@ -432,6 +472,7 @@
       phone: "",
       stateName: "Yobe",
       address: "",
+      mineralSearchQuery: "",
       lgas: [LGAs[0]],
       minerals: ["Gypsum"],
       lga: LGAs[0],
@@ -672,6 +713,11 @@
     return out;
   }
 
+  function normalizeStateName(input) {
+    const val = String(input || "").trim();
+    return STATES.includes(val) ? val : "Yobe";
+  }
+
   function parseRecordLgas(rec) {
     const fromList = pickFirst(rec, ["lgaList", "LgaList", "lgas", "LGAs", "locations", "Locations"]);
     const parsed = normalizeSelection(fromList, null).filter((l) => LGAs.includes(l));
@@ -876,7 +922,7 @@
               id: d.id || d.ID || d.Id || d.artisanId || d.ArtisanId || "",
               name: d.name || d.Full_Name || d.fullName || "—",
               phone: d.phone || d.Phone || "",
-              stateName: d.stateName || d.state || d.State || "Yobe",
+              stateName: normalizeStateName(d.stateName || d.state || d.State || "Yobe"),
               address: d.address || d.Address || "",
               lgas,
               minerals,
@@ -1249,6 +1295,7 @@
       phone: "",
       stateName: "Yobe",
       address: "",
+      mineralSearchQuery: "",
       lgas: [LGAs[0]],
       minerals: ["Gypsum"],
       lga: LGAs[0],
@@ -1348,9 +1395,12 @@
         pickFirst(d, ["name", "Name", "fullName", "Full_Name", "Full Name"]) || "";
       state.formData.lgas = parseRecordLgas(d);
       state.formData.minerals = parseRecordMinerals(d);
+      state.formData.mineralSearchQuery = "";
       state.formData.lga = state.formData.lgas[0] || LGAs[0];
       state.formData.mineral = state.formData.minerals[0] || "Gypsum";
-      state.formData.stateName = pickFirst(d, ["stateName", "state", "State"]) || "Yobe";
+      state.formData.stateName = normalizeStateName(
+        pickFirst(d, ["stateName", "state", "State"]) || "Yobe"
+      );
       state.formData.address = pickFirst(d, ["address", "Address"]) || "";
       state.formData.phone = pickFirst(d, ["phone", "Phone"]) || "";
       state.formData.photoURL = resolvePhotoFromRecord(d, ASSETS.miningLogo);
@@ -1885,10 +1935,11 @@
     if (!a) return;
     state.editingId = id;
     state.formData.name = a.name || "";
-    state.formData.stateName = a.stateName || a.state || "Yobe";
+    state.formData.stateName = normalizeStateName(a.stateName || a.state || "Yobe");
     state.formData.address = a.address || "";
     state.formData.lgas = parseRecordLgas(a);
     state.formData.minerals = parseRecordMinerals(a);
+    state.formData.mineralSearchQuery = "";
     state.formData.lga = state.formData.lgas[0] || LGAs[0];
     state.formData.mineral = state.formData.minerals[0] || "Gypsum";
     state.formData.photoURL = normalizePhotoURL(a.photoURL || null);
@@ -1948,6 +1999,11 @@
     }
     state.formData.lgas = toggleChoice(state.formData.lgas, lga, 3);
     state.formData.lga = state.formData.lgas[0] || "";
+    render();
+  };
+
+  window.setMineralSearchQuery = function (value) {
+    state.formData.mineralSearchQuery = String(value || "");
     render();
   };
 
@@ -2400,6 +2456,59 @@
           );
         })
         .join("") +
+      "</div>" +
+      '<div class="mt-1 text-xs text-gray-500">' +
+      (helperText || "") +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderSearchableMultiChoice(
+    label,
+    options,
+    selectedValues,
+    toggleFn,
+    helperText,
+    query,
+    querySetterFn
+  ) {
+    const selected = normalizeSelection(selectedValues, null);
+    const q = String(query || "").trim().toLowerCase();
+    const filtered = (options || []).filter((opt) => String(opt).toLowerCase().includes(q));
+
+    return (
+      '<div class="mb-4">' +
+      '<label class="block text-sm font-medium text-gray-700 mb-1">' +
+      label +
+      "</label>" +
+      '<input type="text" class="w-full px-4 py-2.5 mb-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all text-sm" placeholder="Search mineral..." value="' +
+      escHtml(query || "") +
+      '" oninput="' +
+      querySetterFn +
+      '(this.value)">' +
+      '<div class="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-xl max-h-44 overflow-y-auto">' +
+      filtered
+        .map((opt) => {
+          const active = selected.includes(opt);
+          return (
+            '<button type="button" onclick="' +
+            toggleFn +
+            "('" +
+            String(opt).replace(/'/g, "\\'") +
+            '\')" class="px-3 py-1.5 rounded-full text-xs font-bold transition border ' +
+            (active
+              ? "bg-emerald-700 text-white border-emerald-700"
+              : "bg-white text-gray-700 border-gray-300 hover:border-emerald-500") +
+            '">' +
+            opt +
+            "</button>"
+          );
+        })
+        .join("") +
+      (filtered.length === 0
+        ? '<div class="text-xs text-gray-500">No mineral matches your search.</div>'
+        : "") +
       "</div>" +
       '<div class="mt-1 text-xs text-gray-500">' +
       (helperText || "") +
@@ -2918,12 +3027,11 @@
         "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 11); state.formData.phone = this.value",
         11
       ) +
-      renderInput(
+      renderSelect(
         t("formState"),
-        "inp-state",
-        "text",
-        "Yobe",
-        state.formData.stateName,
+        "sel-state",
+        STATES,
+        normalizeStateName(state.formData.stateName),
         "state.formData.stateName = this.value"
       ) +
       renderInput(
@@ -2941,12 +3049,14 @@
         "toggleLgaSelection",
         "Select up to 3 LGAs if you operate in multiple locations."
       ) +
-      renderMultiChoice(
+      renderSearchableMultiChoice(
         t("formMineral"),
         MINERAL_NAMES,
         state.formData.minerals,
         "toggleMineralSelection",
-        "Select up to 3 mineral types."
+        "Select up to 3 mineral types.",
+        state.formData.mineralSearchQuery,
+        "setMineralSearchQuery"
       ) +
       '<div class="mb-6">' +
       '<label class="block text-sm font-medium text-gray-700 mb-2">' +
