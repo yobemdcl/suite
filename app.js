@@ -652,6 +652,14 @@
     return String(v || "").replace(/[^0-9]/g, "");
   }
 
+  function normalizePhoneKey(v) {
+    const d = digitsOnly(v);
+    if (!d) return "";
+    // Support local + international formats by matching last 10 digits.
+    if (d.length >= 10) return d.slice(-10);
+    return "";
+  }
+
   function normalizeSelection(input, fallback) {
     const arr = Array.isArray(input) ? input : String(input || "").split(/[;,|]/);
     const set = new Set(
@@ -1268,19 +1276,17 @@
     const raw = String(input || "").trim();
     if (!raw) return null;
     const idCandidate = extractArtisanId(raw);
-    const phoneCandidate = digitsOnly(raw);
+    const phoneKey = normalizePhoneKey(raw);
 
     if (idCandidate) {
       const byId = await callBackend({ action: "search", id: idCandidate });
       if (byId && byId.result === "success" && byId.data) return byId.data;
     }
 
-    if (phoneCandidate.length === 11) {
+    if (phoneKey) {
       const all = await callBackend({ action: "readSheet", sheet: "Artisans" });
       if (all && all.result === "success" && Array.isArray(all.data)) {
-        return (
-          all.data.find((d) => digitsOnly(d.phone || d.Phone || "") === phoneCandidate) || null
-        );
+        return all.data.find((d) => normalizePhoneKey(d.phone || d.Phone || "") === phoneKey) || null;
       }
     }
     return null;
@@ -1292,15 +1298,15 @@
     const btn = document.getElementById("status-btn");
     const msgEl = document.getElementById("status-msg");
     const idCandidate = extractArtisanId(input);
-    const phoneCandidate = digitsOnly(input);
+    const phoneKey = normalizePhoneKey(input);
 
     if (!input) {
       msgEl.innerText = "Please enter an Artisan ID or phone number.";
       msgEl.className = "text-red-500 text-sm mt-2";
       return;
     }
-    if (!idCandidate && phoneCandidate.length !== 11) {
-      msgEl.innerText = "Enter ART-XXXXXX or an 11-digit phone number.";
+    if (!idCandidate && !phoneKey) {
+      msgEl.innerText = "Enter ART-XXXXXX or a valid phone number.";
       msgEl.className = "text-red-600 text-sm mt-2 font-bold";
       return;
     }
@@ -1308,17 +1314,25 @@
     btn.innerText = "Checking...";
     msgEl.innerText = "";
 
-    // Prefer local match, then backend
+    // Prefer backend (fresh status), fallback to local cache.
+    const remote = await findRemoteArtisanByIdOrPhone(input);
     const local = state.applications.find(
       (a) =>
         (idCandidate && String(a.id || "").toUpperCase() === idCandidate) ||
-        (phoneCandidate.length === 11 && digitsOnly(a.phone) === phoneCandidate)
+        (phoneKey && normalizePhoneKey(a.phone) === phoneKey)
     );
-    const found = local || (await findRemoteArtisanByIdOrPhone(input));
+    const found = remote || local;
     btn.innerText = "Check";
 
     if (found) {
       const d = found || {};
+      const foundId = String(pickFirst(d, ["id", "ID", "Id"]) || "").trim();
+      if (foundId) {
+        const idx = state.applications.findIndex((a) => String(a.id || "").trim() === foundId);
+        if (idx >= 0) state.applications[idx] = { ...state.applications[idx], ...d };
+        else state.applications.unshift({ ...d });
+        persistLocal();
+      }
       const status = String(pickFirst(d, ["status", "Status"]) || "Pending");
       if (status.toLowerCase() !== "approved") {
         msgEl.innerText = "Registration found. Current status: " + status + ". ID download is enabled only after staff approval.";

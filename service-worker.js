@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = "yobe-mining-pwa-v8";
+const CACHE_NAME = "yobe-mining-pwa-v9";
 const CORE_ASSETS = [
   "./",
   "./index.html",
