@@ -226,6 +226,8 @@
       formPhone: "Phone Number",
       formLocation: "Mining Location / LGA",
       formMineral: "Mineral Type",
+      formState: "State",
+      formAddress: "Address",
       formPhoto: "Photo (Upload or Snap)",
       snapPhoto: "Snap Photo",
       uploadPhoto: "Upload Photo",
@@ -240,6 +242,10 @@
       downloadID: "Download ID Card",
       back: "Back",
       phoneError: "Phone number must be exactly 11 digits.",
+      lgaSelectionError: "Select at least 1 LGA (maximum 3).",
+      mineralSelectionError: "Select at least 1 mineral type (maximum 3).",
+      stateError: "State is required.",
+      addressError: "Address is required.",
       required: "This field is required.",
       logout: "Logout",
     },
@@ -260,6 +266,8 @@
       formPhone: "Lambar Waya",
       formLocation: "Wurin Haka / Karamar Hukuma",
       formMineral: "Nau'in Ma'adani",
+      formState: "Jiha",
+      formAddress: "Adireshi",
       formPhoto: "Hoto (Saka ko Dauka)",
       snapPhoto: "Dauki Hoto",
       uploadPhoto: "Saka Hoto",
@@ -274,6 +282,10 @@
       downloadID: "Sauke Katin ID",
       back: "Baya",
       phoneError: "Lambar waya dole ta kasance lamba 11.",
+      lgaSelectionError: "Zaɓi aƙalla LGA 1 (matsakaicin 3).",
+      mineralSelectionError: "Zaɓi aƙalla nau'in ma'adani 1 (matsakaicin 3).",
+      stateError: "Ana bukatar Jiha.",
+      addressError: "Ana bukatar adireshi.",
       required: "Ana bukatar wannan.",
       logout: "Fita",
     },
@@ -418,6 +430,10 @@
     formData: {
       name: "",
       phone: "",
+      stateName: "Yobe",
+      address: "",
+      lgas: [LGAs[0]],
+      minerals: ["Gypsum"],
       lga: LGAs[0],
       mineral: "Gypsum",
       photoURL: null,
@@ -426,6 +442,7 @@
     generatedId: "",
     expiryDate: "",
     issueDate: "",
+    statusLookupInput: "",
     searchResult: null,
     renewalStatus: null,
   };
@@ -631,6 +648,50 @@
     return null;
   }
 
+  function digitsOnly(v) {
+    return String(v || "").replace(/[^0-9]/g, "");
+  }
+
+  function normalizeSelection(input, fallback) {
+    const arr = Array.isArray(input) ? input : String(input || "").split(/[;,|]/);
+    const set = new Set(
+      arr
+        .map((x) => String(x || "").trim())
+        .filter(Boolean)
+    );
+    const out = Array.from(set);
+    if (!out.length && fallback) return [fallback];
+    return out;
+  }
+
+  function parseRecordLgas(rec) {
+    const fromList = pickFirst(rec, ["lgaList", "LgaList", "lgas", "LGAs", "locations", "Locations"]);
+    const parsed = normalizeSelection(fromList, null).filter((l) => LGAs.includes(l));
+    if (parsed.length) return parsed.slice(0, 3);
+    const one = pickFirst(rec, ["location", "Location", "lga", "LGA"]) || LGAs[0];
+    return [String(one)];
+  }
+
+  function parseRecordMinerals(rec) {
+    const fromList = pickFirst(rec, [
+      "mineralList",
+      "MineralList",
+      "minerals",
+      "Minerals",
+      "mineralTypes",
+      "MineralTypes",
+    ]);
+    const parsed = normalizeSelection(fromList, null).filter((m) => !!MINERAL_MAP[String(m)]);
+    if (parsed.length) return parsed.slice(0, 3);
+    const one = pickFirst(rec, ["mineral", "Mineral"]) || "Gypsum";
+    return [String(one)];
+  }
+
+  function hasLga(record, lga) {
+    if (!lga) return false;
+    return parseRecordLgas(record).includes(lga);
+  }
+
   function normalizeDriveUrlMaybe(url) {
     const u = String(url || "").trim();
     if (!u) return "";
@@ -798,26 +859,36 @@
         Array.isArray(artisans.data)
       ) {
         raw.push(
-          ...artisans.data.map((d) => ({
-            ...d,
-            type: "Artisan",
-            id: d.id || d.ID || d.Id || d.artisanId || d.ArtisanId || "",
-            name: d.name || d.Full_Name || d.fullName || "—",
-            phone: d.phone || d.Phone || "",
-            location: d.location || d.lga || d.LGA || "—",
-            mineral: d.mineral || d.Mineral || "—",
-            status: d.status || d.Status || "Pending",
-            paymentStatus: d.paymentStatus || d.PaymentStatus || "Unpaid",
-            paidAmount: d.paidAmount || d.PaidAmount || 0,
-            fee: d.fee || d.Fee || 0,
-            photoURL: resolvePhotoFromRecord(d, null),
-            expiryDate: d.expiryDate || d.ExpiryDate || d.expiry || null,
-            issueDate: d.issueDate || d.IssueDate || null,
-            lat: d.lat ?? d.Lat ?? null,
-            lng: d.lng ?? d.Lng ?? d.lon ?? d.Lon ?? null,
-            locationCapturedAt:
-              d.locationCapturedAt || d.LocationCapturedAt || null,
-          }))
+          ...artisans.data.map((d) => {
+            const lgas = parseRecordLgas(d);
+            const minerals = parseRecordMinerals(d);
+            return {
+              ...d,
+              type: "Artisan",
+              id: d.id || d.ID || d.Id || d.artisanId || d.ArtisanId || "",
+              name: d.name || d.Full_Name || d.fullName || "—",
+              phone: d.phone || d.Phone || "",
+              stateName: d.stateName || d.state || d.State || "Yobe",
+              address: d.address || d.Address || "",
+              lgas,
+              minerals,
+              lgaList: lgas.join(", "),
+              mineralList: minerals.join(", "),
+              location: d.location || d.lga || d.LGA || lgas.join(", ") || "—",
+              mineral: d.mineral || d.Mineral || minerals.join(", ") || "—",
+              status: d.status || d.Status || "Pending",
+              paymentStatus: d.paymentStatus || d.PaymentStatus || "Unpaid",
+              paidAmount: d.paidAmount || d.PaidAmount || 0,
+              fee: d.fee || d.Fee || 0,
+              photoURL: resolvePhotoFromRecord(d, null),
+              expiryDate: d.expiryDate || d.ExpiryDate || d.expiry || null,
+              issueDate: d.issueDate || d.IssueDate || null,
+              lat: d.lat ?? d.Lat ?? null,
+              lng: d.lng ?? d.Lng ?? d.lon ?? d.Lon ?? null,
+              locationCapturedAt:
+                d.locationCapturedAt || d.LocationCapturedAt || null,
+            };
+          })
         );
       }
 
@@ -1165,7 +1236,17 @@
   }
 
   function resetForm() {
-    state.formData = { name: "", phone: "", lga: LGAs[0], mineral: "Gypsum", photoURL: null };
+    state.formData = {
+      name: "",
+      phone: "",
+      stateName: "Yobe",
+      address: "",
+      lgas: [LGAs[0]],
+      minerals: ["Gypsum"],
+      lga: LGAs[0],
+      mineral: "Gypsum",
+      photoURL: null,
+    };
     state.capturedPhoto = null;
     state.cameraError = null;
     state.error = null;
@@ -1175,6 +1256,7 @@
   window.openRegisterMiner = function () {
     resetForm();
     state.generatedId = "";
+    state.statusLookupInput = "";
     state.searchResult = null;
     window.setView("artisan-form");
   };
@@ -1182,18 +1264,43 @@
   // =========================
   // Status + Renew (kept)
   // =========================
+  async function findRemoteArtisanByIdOrPhone(input) {
+    const raw = String(input || "").trim();
+    if (!raw) return null;
+    const idCandidate = extractArtisanId(raw);
+    const phoneCandidate = digitsOnly(raw);
+
+    if (idCandidate) {
+      const byId = await callBackend({ action: "search", id: idCandidate });
+      if (byId && byId.result === "success" && byId.data) return byId.data;
+    }
+
+    if (phoneCandidate.length === 11) {
+      const all = await callBackend({ action: "readSheet", sheet: "Artisans" });
+      if (all && all.result === "success" && Array.isArray(all.data)) {
+        return (
+          all.data.find((d) => digitsOnly(d.phone || d.Phone || "") === phoneCandidate) || null
+        );
+      }
+    }
+    return null;
+  }
+
   window.checkStatus = async function () {
     const input = document.getElementById("status-input").value.trim();
+    state.statusLookupInput = input;
     const btn = document.getElementById("status-btn");
     const msgEl = document.getElementById("status-msg");
+    const idCandidate = extractArtisanId(input);
+    const phoneCandidate = digitsOnly(input);
 
     if (!input) {
-      msgEl.innerText = "Please enter an ID.";
+      msgEl.innerText = "Please enter an Artisan ID or phone number.";
       msgEl.className = "text-red-500 text-sm mt-2";
       return;
     }
-    if (!enforceArtisanOnly(input)) {
-      msgEl.innerText = "Only Artisan IDs (ART-xxxxxx) are supported at the moment.";
+    if (!idCandidate && phoneCandidate.length !== 11) {
+      msgEl.innerText = "Enter ART-XXXXXX or an 11-digit phone number.";
       msgEl.className = "text-red-600 text-sm mt-2 font-bold";
       return;
     }
@@ -1203,43 +1310,42 @@
 
     // Prefer local match, then backend
     const local = state.applications.find(
-      (a) => String(a.id || "").toUpperCase() === input.toUpperCase()
+      (a) =>
+        (idCandidate && String(a.id || "").toUpperCase() === idCandidate) ||
+        (phoneCandidate.length === 11 && digitsOnly(a.phone) === phoneCandidate)
     );
-    if (local) {
-      state.searchResult = local;
-      state.generatedId = local.id;
-      state.formData.name = local.name || "";
-      state.formData.lga = local.location || local.lga || LGAs[0];
-      state.formData.mineral = local.mineral || "Gypsum";
-      state.formData.photoURL = resolvePhotoFromRecord(local, ASSETS.miningLogo);
-      state.expiryDate = local.expiryDate ? new Date(local.expiryDate) : addYears(1);
-      btn.innerText = "Check";
-      window.setView("search-success");
-      return;
-    }
-
-    const result = await callBackend({ action: "search", id: input });
+    const found = local || (await findRemoteArtisanByIdOrPhone(input));
     btn.innerText = "Check";
 
-    if (result && result.result === "success") {
-      const d = result.data || {};
+    if (found) {
+      const d = found || {};
+      const status = String(pickFirst(d, ["status", "Status"]) || "Pending");
+      if (status.toLowerCase() !== "approved") {
+        msgEl.innerText = "Registration found. Current status: " + status + ". ID download is enabled only after staff approval.";
+        msgEl.className = "text-orange-700 text-sm mt-2 font-bold";
+        return;
+      }
+
       state.searchResult = d;
 
       state.generatedId =
-        pickFirst(d, ["id", "ID", "Id"]) || input.toUpperCase();
+        pickFirst(d, ["id", "ID", "Id"]) || idCandidate;
       state.formData.name =
         pickFirst(d, ["name", "Name", "fullName", "Full_Name", "Full Name"]) || "";
-      state.formData.lga =
-        pickFirst(d, ["location", "Location", "lga", "LGA"]) || LGAs[0];
-      state.formData.mineral =
-        pickFirst(d, ["mineral", "Mineral"]) || "Gypsum";
+      state.formData.lgas = parseRecordLgas(d);
+      state.formData.minerals = parseRecordMinerals(d);
+      state.formData.lga = state.formData.lgas[0] || LGAs[0];
+      state.formData.mineral = state.formData.minerals[0] || "Gypsum";
+      state.formData.stateName = pickFirst(d, ["stateName", "state", "State"]) || "Yobe";
+      state.formData.address = pickFirst(d, ["address", "Address"]) || "";
+      state.formData.phone = pickFirst(d, ["phone", "Phone"]) || "";
       state.formData.photoURL = resolvePhotoFromRecord(d, ASSETS.miningLogo);
       const expRaw = pickFirst(d, ["expiryDate", "ExpiryDate", "expiry", "Expiry"]);
       state.expiryDate = expRaw ? new Date(expRaw) : addYears(1);
 
       window.setView("search-success");
     } else {
-      msgEl.innerText = "Record not found. Please verify the ID.";
+      msgEl.innerText = "Record not found. Please verify the ID or phone number.";
       msgEl.className = "text-red-500 text-sm mt-2 font-bold";
     }
   };
@@ -1765,8 +1871,12 @@
     if (!a) return;
     state.editingId = id;
     state.formData.name = a.name || "";
-    state.formData.lga = a.location || LGAs[0];
-    state.formData.mineral = a.mineral || "Gypsum";
+    state.formData.stateName = a.stateName || a.state || "Yobe";
+    state.formData.address = a.address || "";
+    state.formData.lgas = parseRecordLgas(a);
+    state.formData.minerals = parseRecordMinerals(a);
+    state.formData.lga = state.formData.lgas[0] || LGAs[0];
+    state.formData.mineral = state.formData.minerals[0] || "Gypsum";
     state.formData.photoURL = normalizePhotoURL(a.photoURL || null);
     state.formData.phone = a.phone || "08000000000";
     window.setView("artisan-form");
@@ -1797,14 +1907,52 @@
     render();
   };
 
+  function toggleChoice(list, value, maxCount) {
+    const current = normalizeSelection(list, null);
+    const has = current.includes(value);
+    if (has) return current.filter((x) => x !== value);
+    if (current.length >= maxCount) return current;
+    return [...current, value];
+  }
+
+  window.toggleMineralSelection = function (mineral) {
+    const current = normalizeSelection(state.formData.minerals, null);
+    if (!current.includes(mineral) && current.length >= 3) {
+      uiAlert("Maximum of 3 mineral types can be selected.");
+      return;
+    }
+    state.formData.minerals = toggleChoice(state.formData.minerals, mineral, 3);
+    state.formData.mineral = state.formData.minerals[0] || "";
+    render();
+  };
+
+  window.toggleLgaSelection = function (lga) {
+    const current = normalizeSelection(state.formData.lgas, null);
+    if (!current.includes(lga) && current.length >= 3) {
+      uiAlert("Maximum of 3 LGAs can be selected.");
+      return;
+    }
+    state.formData.lgas = toggleChoice(state.formData.lgas, lga, 3);
+    state.formData.lga = state.formData.lgas[0] || "";
+    render();
+  };
+
   function validateArtisanForm() {
     const errors = [];
     const name = String(state.formData.name || "").trim();
     const phone = String(state.formData.phone || "");
     const cleanPhone = phone.replace(/[^0-9]/g, "");
+    const stateName = String(state.formData.stateName || "").trim();
+    const address = String(state.formData.address || "").trim();
+    const lgas = normalizeSelection(state.formData.lgas, null);
+    const minerals = normalizeSelection(state.formData.minerals, null);
 
     if (cleanPhone.length !== 11) errors.push(t("phoneError"));
     if (!name) errors.push(t("required"));
+    if (!stateName) errors.push(t("stateError"));
+    if (!address) errors.push(t("addressError"));
+    if (!lgas.length || lgas.length > 3) errors.push(t("lgaSelectionError"));
+    if (!minerals.length || minerals.length > 3) errors.push(t("mineralSelectionError"));
     if (!state.formData.photoURL) errors.push("Passport photo is required.");
     return errors;
   }
@@ -1824,12 +1972,21 @@
       const idx = state.applications.findIndex((a) => a.id === state.editingId);
       if (idx !== -1) {
         const original = state.applications[idx];
+        const lgas = normalizeSelection(state.formData.lgas, LGAs[0]).slice(0, 3);
+        const minerals = normalizeSelection(state.formData.minerals, "Gypsum").slice(0, 3);
         const updatedApp = {
           ...original,
           type: "Artisan",
           name: state.formData.name,
-          location: state.formData.lga,
-          mineral: state.formData.mineral,
+          stateName: state.formData.stateName,
+          address: state.formData.address,
+          lga: lgas[0],
+          lgas,
+          lgaList: lgas.join(", "),
+          location: lgas.join(", "),
+          mineral: minerals.join(", "),
+          minerals,
+          mineralList: minerals.join(", "),
           photoURL: normalizePhotoURL(state.formData.photoURL),
           phone: state.formData.phone,
           updatedAt: new Date().toISOString(),
@@ -1867,6 +2024,9 @@
 
     const createdAtISO = new Date().toISOString();
 
+    const lgas = normalizeSelection(state.formData.lgas, LGAs[0]).slice(0, 3);
+    const minerals = normalizeSelection(state.formData.minerals, "Gypsum").slice(0, 3);
+
     const backendData = {
       id: state.generatedId,
       type: "Artisan",
@@ -1876,9 +2036,16 @@
       fee: 20000,
       name: state.formData.name,
       phone: state.formData.phone,
-      lga: state.formData.lga,
-      location: state.formData.lga, // keep both for compatibility
-      mineral: state.formData.mineral,
+      stateName: state.formData.stateName,
+      state: state.formData.stateName,
+      address: state.formData.address,
+      lga: lgas[0],
+      lgas,
+      lgaList: lgas.join(", "),
+      location: lgas.join(", "),
+      mineral: minerals.join(", "),
+      minerals,
+      mineralList: minerals.join(", "),
       photoURL: normalizePhotoURL(state.formData.photoURL),
       issueDate: iso(state.issueDate),
       expiryDate: iso(state.expiryDate),
@@ -1903,7 +2070,8 @@
 
     setTimeout(() => {
       state.isLoading = false;
-      window.setView("success");
+      state.statusLookupInput = state.formData.phone || "";
+      window.setView("status-check");
     }, 900);
   };
 
@@ -2187,6 +2355,40 @@
       '<div class="absolute right-3 top-3.5 pointer-events-none text-gray-400">' +
       Icon("chevron-down", "w-5 h-5") +
       "</div>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderMultiChoice(label, options, selectedValues, toggleFn, helperText) {
+    const selected = normalizeSelection(selectedValues, null);
+    return (
+      '<div class="mb-4">' +
+      '<label class="block text-sm font-medium text-gray-700 mb-1">' +
+      label +
+      "</label>" +
+      '<div class="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-xl max-h-44 overflow-y-auto">' +
+      (options || [])
+        .map((opt) => {
+          const active = selected.includes(opt);
+          return (
+            '<button type="button" onclick="' +
+            toggleFn +
+            "('" +
+            String(opt).replace(/'/g, "\\'") +
+            '\')" class="px-3 py-1.5 rounded-full text-xs font-bold transition border ' +
+            (active
+              ? "bg-emerald-700 text-white border-emerald-700"
+              : "bg-white text-gray-700 border-gray-300 hover:border-emerald-500") +
+            '">' +
+            opt +
+            "</button>"
+          );
+        })
+        .join("") +
+      "</div>" +
+      '<div class="mt-1 text-xs text-gray-500">' +
+      (helperText || "") +
       "</div>" +
       "</div>"
     );
@@ -2702,8 +2904,36 @@
         "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 11); state.formData.phone = this.value",
         11
       ) +
-      renderSelect(t("formLocation"), "sel-lga", LGAs, state.formData.lga, "state.formData.lga = this.value") +
-      renderSelect(t("formMineral"), "sel-mineral", MINERAL_NAMES, state.formData.mineral, "state.formData.mineral = this.value") +
+      renderInput(
+        t("formState"),
+        "inp-state",
+        "text",
+        "Yobe",
+        state.formData.stateName,
+        "state.formData.stateName = this.value"
+      ) +
+      renderInput(
+        t("formAddress"),
+        "inp-address",
+        "text",
+        "House/Street, Community",
+        state.formData.address,
+        "state.formData.address = this.value"
+      ) +
+      renderMultiChoice(
+        t("formLocation"),
+        LGAs,
+        state.formData.lgas,
+        "toggleLgaSelection",
+        "Select up to 3 LGAs if you operate in multiple locations."
+      ) +
+      renderMultiChoice(
+        t("formMineral"),
+        MINERAL_NAMES,
+        state.formData.minerals,
+        "toggleMineralSelection",
+        "Select up to 3 mineral types."
+      ) +
       '<div class="mb-6">' +
       '<label class="block text-sm font-medium text-gray-700 mb-2">' +
       t("formPhoto") +
@@ -2806,14 +3036,6 @@
   }
 
   function renderSuccess() {
-    const card = renderIDCard(
-      state.generatedId,
-      state.formData.name,
-      state.formData.lga,
-      state.formData.mineral,
-      state.expiryDate,
-      state.formData.photoURL
-    );
     return (
       '<div class="flex-grow flex flex-col items-center py-10 px-4 bg-gray-100">' +
       '<div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">' +
@@ -2822,21 +3044,14 @@
       '<h2 class="text-2xl font-bold text-emerald-900 mb-2">' +
       t("success") +
       "</h2>" +
-      '<p class="text-xs text-gray-500 mb-6">GPS captured and stored for this registration.</p>' +
-      '<div class="w-full max-w-2xl mb-8 flex justify-center">' +
-      card +
-      "</div>" +
+      '<p class="text-sm text-gray-600 mb-6 text-center max-w-lg">Your registration is submitted and awaiting staff approval. ID viewing/download is available only after approval.</p>' +
+      '<p class="text-xs text-gray-500 mb-8">Use your phone number to verify status.</p>' +
       '<div class="flex gap-4 flex-wrap justify-center">' +
-      '<button onclick="downloadElement(\'download-target\', \'MinerID_' +
-      state.generatedId +
-      "\')" +
-      '" class="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold shadow-lg transition flex items-center gap-2">' +
-      Icon("download") +
-      " " +
-      t("downloadID") +
-      "</button>" +
+      '<button onclick="setView(\'status-check\')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition flex items-center gap-2">' +
+      Icon("search") +
+      " Check Status</button>" +
       '<button onclick="setView(\'miner-portal\')" class="bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition">' +
-      t("back") +
+      "Back to Menu" +
       "</button>" +
       "</div>" +
       "</div>"
@@ -2844,16 +3059,28 @@
   }
 
   function renderSearchSuccess() {
+    const recStatus = String(
+      pickFirst(state.searchResult || {}, ["status", "Status"]) || "Pending"
+    );
+    if (recStatus.toLowerCase() !== "approved") {
+      window.setView("status-check");
+      return "";
+    }
+
     const id = state.generatedId || (state.searchResult && state.searchResult.id) || "";
     const nm = state.formData.name || (state.searchResult && state.searchResult.name) || "";
-    const lga =
-      state.formData.lga ||
-      (state.searchResult && (state.searchResult.lga || state.searchResult.location)) ||
-      LGAs[0];
-    const mineral =
-      state.formData.mineral ||
-      (state.searchResult && state.searchResult.mineral) ||
-      "Gypsum";
+    const lga = normalizeSelection(
+      state.formData.lgas ||
+        (state.searchResult && parseRecordLgas(state.searchResult)) ||
+        state.formData.lga,
+      LGAs[0]
+    ).join(", ");
+    const mineral = normalizeSelection(
+      state.formData.minerals ||
+        (state.searchResult && parseRecordMinerals(state.searchResult)) ||
+        state.formData.mineral,
+      "Gypsum"
+    ).join(", ");
     const exp = state.expiryDate || addYears(1);
     const photo =
       state.formData.photoURL ||
@@ -3448,12 +3675,13 @@
       return acc;
     }, {});
     state.applications.forEach((a) => {
-      const l = a.location || a.lga || "";
-      if (lgaCounts[l] !== undefined) lgaCounts[l] += 1;
+      parseRecordLgas(a).forEach((l) => {
+        if (lgaCounts[l] !== undefined) lgaCounts[l] += 1;
+      });
     });
 
     const filteredArtisans = state.applications.filter((a) => {
-      const byLga = mdLga === "All" || String(a.location || a.lga || "") === mdLga;
+      const byLga = mdLga === "All" || hasLga(a, mdLga);
       const bySearch =
         String(a.name || "").toLowerCase().includes(mdSearch) ||
         String(a.id || "").toLowerCase().includes(mdSearch);
@@ -3880,10 +4108,13 @@
         "</button>" +
         '<div class="bg-white rounded-2xl shadow-xl p-6 text-center">' +
         '<h2 class="text-xl font-bold text-gray-800 mb-2">Check ID Status</h2>' +
-        '<input id="status-input" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="Enter ART-XXXXXX" />' +
+        '<p class="text-xs text-gray-500 mb-3">Enter phone number (recommended) or Artisan ID.</p>' +
+        '<input id="status-input" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="08012345678 or ART-XXXXXX" value="' +
+        escHtml(state.statusLookupInput || "") +
+        '" oninput="state.statusLookupInput = this.value" />' +
         '<div id="status-msg"></div>' +
         '<button id="status-btn" onclick="checkStatus()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Check</button>' +
-        '<p class="mt-3 text-xs text-gray-500">Only Artisan IDs are supported right now.</p>' +
+        '<p class="mt-3 text-xs text-gray-500">ID can be viewed/downloaded only after staff approval.</p>' +
         "</div>" +
         "</div>";
     } else if (state.view === "renew-check") content = renderRenewCheck();
@@ -3923,7 +4154,7 @@
         const mdSearch = state.mdSearch || "";
         const mdLga = state.mdFilterLga || "All";
         const filteredArtisans = state.applications.filter((a) => {
-          const byLga = mdLga === "All" || String(a.location || a.lga || "") === mdLga;
+          const byLga = mdLga === "All" || hasLga(a, mdLga);
           const bySearch =
             String(a.name || "").toLowerCase().includes(mdSearch) ||
             String(a.id || "").toLowerCase().includes(mdSearch);
