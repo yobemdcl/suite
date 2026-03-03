@@ -4076,7 +4076,7 @@
 
                   <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Mineral Price List (Fixed)</div>
-                    <div class="space-y-2">
+                    <div class="space-y-2 max-h-72 overflow-y-auto custom-scroll pr-1">
                       ${MINERAL_CATALOG.map(k => `
                         <div class="flex items-center justify-between text-sm">
                           <span class="text-gray-700 font-medium">${k.name}</span>
