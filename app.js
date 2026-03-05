@@ -28,7 +28,6 @@
     exitLogs: "ysmco_exitlogs_v2",
     staffLocs: "ysmco_stafflocs_v2",
     scanLogs: "ysmco_scanlogs_v2",
-    staffPins: "ysmco_staff_pins_v1",
     pwaHintDismissed: "ysmco_pwa_ios_hint_dismissed_v1",
   };
 
@@ -49,48 +48,46 @@
   function safeArray(val) {
     return Array.isArray(val) ? val : [];
   }
-  function safeObject(val) {
-    return val && typeof val === "object" && !Array.isArray(val) ? val : {};
-  }
-
-  let STAFF_CUSTOM_PINS = safeObject(lsGet(LS_KEYS.staffPins, {}));
-  function persistStaffPins() {
-    STAFF_CUSTOM_PINS = safeObject(STAFF_CUSTOM_PINS);
-    lsSet(LS_KEYS.staffPins, STAFF_CUSTOM_PINS);
-  }
-
-  function findStaffAccountByPin(pin) {
-    const enteredPin = String(pin || "").trim();
-    if (!enteredPin) return null;
-
-    for (const [defaultPin, acct] of Object.entries(STAFF_ACCOUNTS)) {
-      if (!acct || acct.role !== "staff") continue;
-      const staffKey = String(acct.name || "").trim();
-      const customPin = String(STAFF_CUSTOM_PINS[staffKey] || "").trim();
-
-      if (customPin) {
-        if (enteredPin === customPin) {
-          return { acct, mustChangePin: false, usingCustomPin: true, defaultPin };
-        }
-        continue;
+  async function verifyAccountPinWithServer(pin) {
+    const safePin = String(pin || "").trim();
+    if (!/^\d{4}$/.test(safePin)) return null;
+    try {
+      const res = await callBackend({ action: "verifyPin", pin: safePin });
+      if (!res) return { ok: false, serverError: true, error: "No response from server." };
+      if (res.result !== "success") {
+        return {
+          ok: false,
+          serverError: true,
+          error: String(res.error || "PIN verification failed on server."),
+        };
       }
-
-      if (enteredPin === defaultPin) {
-        return { acct, mustChangePin: true, usingCustomPin: false, defaultPin };
-      }
+      return {
+        ok: !!res.ok,
+        accountName: String(res.accountName || "").trim(),
+        role: String(res.role || "").trim() || "staff",
+        mustChangePin: !!res.mustChangePin,
+        serverError: false,
+      };
+    } catch (e) {
+      return { ok: false, serverError: true, error: "Could not reach server." };
     }
-
-    return null;
   }
 
-  function findAccountByPin(pin) {
-    const enteredPin = String(pin || "").trim();
-    const staffMatch = findStaffAccountByPin(enteredPin);
-    if (staffMatch) return staffMatch;
-
-    const acct = STAFF_ACCOUNTS[enteredPin];
-    if (!acct) return null;
-    return { acct, mustChangePin: false, usingCustomPin: false, defaultPin: enteredPin };
+  async function setAccountPinOnServer(accountName, role, newPin) {
+    const account = String(accountName || "").trim();
+    const safePin = String(newPin || "").trim();
+    if (!account || !/^\d{4}$/.test(safePin)) return false;
+    try {
+      const res = await callBackend({
+        action: "setPin",
+        accountName: account,
+        role: String(role || "").trim() || "staff",
+        newPin: safePin,
+      });
+      return !!(res && res.result === "success" && res.ok);
+    } catch (e) {
+      return false;
+    }
   }
 
   // =========================
@@ -462,7 +459,7 @@
     },
 
     auth: { staffId: null, role: null, staffName: null, pin: null },
-    pendingPinSetupStaff: null,
+    pendingPinSetupAccount: null,
 
     staffLocStatus: {
       lastLoggedAt: null,
@@ -670,8 +667,8 @@
     if (
       view === "admin-dashboard" &&
       state.currentUserRole === "staff" &&
-      state.pendingPinSetupStaff &&
-      state.pendingPinSetupStaff.staffName
+      state.pendingPinSetupAccount &&
+      state.pendingPinSetupAccount.accountName
     ) {
       view = "staff-change-pin";
     }
@@ -2308,7 +2305,7 @@
   // =========================
   // Auth (PIN-based)
   // =========================
-  window.handleAdminLogin = function (e) {
+  window.handleAdminLogin = async function (e) {
     e.preventDefault();
     if (state.authSigningIn) return;
     const input = document.getElementById("admin-pin");
@@ -2316,16 +2313,6 @@
 
     const pin = String(input?.value || "").trim();
     if (!pin) return;
-
-    const match = findAccountByPin(pin);
-    if (!match || !match.acct) {
-      uiAlert(
-        "Invalid PIN. Use your active PIN. First-time staff should use default PIN: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722)."
-      );
-      if (btn) btn.innerHTML = t("portalEntry");
-      return;
-    }
-    const acct = match.acct;
 
     state.authSigningIn = true;
     if (btn) {
@@ -2335,6 +2322,39 @@
       } catch (e) {}
     }
 
+    const verification = await verifyAccountPinWithServer(pin);
+    if (!verification || verification.serverError) {
+      uiAlert(
+        "PIN verification endpoint is unavailable. Please update/deploy Google Script with verifyPin/setPin actions."
+      );
+      state.authSigningIn = false;
+      if (btn) {
+        btn.innerHTML = t("portalEntry");
+        try {
+          btn.removeAttribute("disabled");
+        } catch (e) {}
+      }
+      return;
+    }
+
+    if (!verification.ok || !verification.accountName) {
+      uiAlert(
+        "Invalid PIN. Use your active PIN. First-time users should use default PIN: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722), Executive (3333)."
+      );
+      state.authSigningIn = false;
+      if (btn) {
+        btn.innerHTML = t("portalEntry");
+        try {
+          btn.removeAttribute("disabled");
+        } catch (e) {}
+      }
+      return;
+    }
+    const acct = {
+      name: verification.accountName,
+      role: verification.role || "staff",
+    };
+
     state.auth.pin = pin;
     state.auth.staffName = acct.name;
     state.auth.staffId = acct.name;
@@ -2343,10 +2363,10 @@
     state.currentUserRole = acct.role;
     state.staffLocStatus.error = null;
 
-    if (acct.role === "staff" && match.mustChangePin) {
-      state.pendingPinSetupStaff = {
-        staffName: acct.name,
-        defaultPin: String(match.defaultPin || pin || "").trim(),
+    if (verification.mustChangePin) {
+      state.pendingPinSetupAccount = {
+        accountName: acct.name,
+        role: acct.role,
       };
       state.authSigningIn = false;
       if (btn) {
@@ -2358,7 +2378,7 @@
       window.setView("staff-change-pin");
       return;
     }
-    state.pendingPinSetupStaff = null;
+    state.pendingPinSetupAccount = null;
 
     // Fast login: show dashboard immediately with locally cached data, then refresh in background.
     hydrateLocal();
@@ -2384,12 +2404,12 @@
   window.manualLogLocationNow = function () {
     logStaffLocation("manual");
   };
-  window.handleStaffPinSetup = function (e) {
+  window.handleStaffPinSetup = async function (e) {
     e.preventDefault();
     if (state.pinSetupSubmitting) return;
 
-    const pending = state.pendingPinSetupStaff;
-    if (!pending || !pending.staffName) {
+    const pending = state.pendingPinSetupAccount;
+    if (!pending || !pending.accountName) {
       uiAlert("Session expired. Please login again.");
       window.logout();
       return;
@@ -2407,11 +2427,6 @@
       uiAlert("PIN confirmation does not match.");
       return;
     }
-    if (newPin === String(pending.defaultPin || "").trim()) {
-      uiAlert("Choose a new PIN different from your default PIN.");
-      return;
-    }
-
     state.pinSetupSubmitting = true;
     if (btn) {
       btn.innerHTML = t("processing");
@@ -2420,11 +2435,21 @@
       } catch (e) {}
     }
 
-    STAFF_CUSTOM_PINS[pending.staffName] = newPin;
-    persistStaffPins();
+    const pinSaved = await setAccountPinOnServer(pending.accountName, pending.role, newPin);
+    if (!pinSaved) {
+      state.pinSetupSubmitting = false;
+      if (btn) {
+        btn.innerHTML = "Continue";
+        try {
+          btn.removeAttribute("disabled");
+        } catch (e) {}
+      }
+      uiAlert("Could not update PIN on server. Check internet and try again.");
+      return;
+    }
 
     state.auth.pin = newPin;
-    state.pendingPinSetupStaff = null;
+    state.pendingPinSetupAccount = null;
     state.pinSetupSubmitting = false;
     if (btn) {
       btn.innerHTML = "Continue";
@@ -2434,13 +2459,19 @@
     }
 
     hydrateLocal();
-    window.setView("admin-dashboard");
-    startStaffLocationTracking({ silent: true });
+    if (pending.role === "md") {
+      window.setView("md-dashboard");
+      startMDRefreshLoop();
+    } else {
+      window.setView("admin-dashboard");
+      startStaffLocationTracking({ silent: true });
+    }
 
     (async () => {
       try {
         await loadApplications();
         await loadExitLogs();
+        if (pending.role === "md") await loadMDData();
       } finally {}
     })();
   };
@@ -2455,7 +2486,7 @@
     state.auth.staffId = null;
     state.auth.staffName = null;
     state.auth.pin = null;
-    state.pendingPinSetupStaff = null;
+    state.pendingPinSetupAccount = null;
     state.pinSetupSubmitting = false;
 
     stopStaffLocationTracking();
@@ -3586,11 +3617,11 @@
       '<h2 class="text-2xl font-bold text-gray-900">' +
       t("adminLogin") +
       "</h2>" +
-      '<div class="mt-2 text-[11px] text-gray-400">Enter staff PIN. First login requires PIN update. Location permission will be requested for field tracking.</div>' +
+      '<div class="mt-2 text-[11px] text-gray-400">Enter staff/MD PIN. First login requires PIN update. Location permission will be requested for field tracking.</div>' +
       "</div>" +
       '<form onsubmit="handleAdminLogin(event)" class="space-y-4">' +
       "<div>" +
-      '<label class="block text-sm font-medium text-gray-700 mb-1">Staff PIN</label>' +
+      '<label class="block text-sm font-medium text-gray-700 mb-1">Login PIN</label>' +
       '<input id="admin-pin" type="password" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="••••" />' +
       "</div>" +
       '<button id="admin-submit" type="submit" class="w-full bg-emerald-800 text-white py-3 rounded-lg font-bold shadow-lg hover:bg-emerald-900 transition-colors flex items-center justify-center">' +
@@ -3606,8 +3637,8 @@
   }
 
   function renderStaffPinChange() {
-    const pending = state.pendingPinSetupStaff;
-    if (!pending || !pending.staffName) {
+    const pending = state.pendingPinSetupAccount;
+    if (!pending || !pending.accountName) {
       return (
         '<div class="min-h-[70vh] flex items-center justify-center p-4">' +
         '<div class="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full border border-gray-100 text-center">' +
@@ -3626,9 +3657,9 @@
       '<div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">' +
       Icon("key-round", "w-8 h-8 text-emerald-700") +
       "</div>" +
-      '<h2 class="text-2xl font-bold text-gray-900">Set New Staff PIN</h2>' +
+      '<h2 class="text-2xl font-bold text-gray-900">Set New Login PIN</h2>' +
       '<p class="mt-2 text-xs text-gray-500">Welcome ' +
-      escHtml(pending.staffName) +
+      escHtml(pending.accountName) +
       '. For first login, set a new 4-digit PIN.</p>' +
       "</div>" +
       '<form onsubmit="handleStaffPinSetup(event)" class="space-y-4">' +
