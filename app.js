@@ -3240,7 +3240,7 @@
       t("welcome") +
       ", Miner!</h2>" +
       '<div class="grid grid-cols-2 gap-4 mt-6">' +
-      '<button onclick="setView(\'artisan-form\')" class="bg-white p-4 rounded-2xl shadow-md border-b-4 border-yellow-400 active:border-b-0 active:translate-y-1 transition-all flex flex-col items-center gap-2 hover:bg-yellow-50">' +
+      '<button onclick="openRegisterMiner()" class="bg-white p-4 rounded-2xl shadow-md border-b-4 border-yellow-400 active:border-b-0 active:translate-y-1 transition-all flex flex-col items-center gap-2 hover:bg-yellow-50">' +
       '<div class="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center">' +
       Icon("user", "w-6 h-6") +
       "</div>" +
