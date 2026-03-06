@@ -265,6 +265,7 @@
       renew: "Renew ID Card",
       formName: "Full Name",
       formPhone: "Phone Number",
+      formNin: "National Identity Number (NIN)",
       formLocation: "Mining Location / LGA",
       formMineral: "Mineral Type",
       formState: "State",
@@ -283,6 +284,8 @@
       downloadID: "Download ID Card",
       back: "Back",
       phoneError: "Phone number must be exactly 11 digits.",
+      ninError: "NIN must be exactly 11 digits.",
+      phoneOrNinRequired: "Provide at least Phone Number or NIN.",
       lgaSelectionError: "Select at least 1 LGA (maximum 3).",
       mineralSelectionError: "Select at least 1 mineral type (maximum 3).",
       stateError: "State is required.",
@@ -305,6 +308,7 @@
       renew: "Sabunta Katin ID",
       formName: "Cikakken Suna",
       formPhone: "Lambar Waya",
+      formNin: "Lambar Shaidar Kasa (NIN)",
       formLocation: "Wurin Haka / Karamar Hukuma",
       formMineral: "Nau'in Ma'adani",
       formState: "Jiha",
@@ -323,6 +327,8 @@
       downloadID: "Sauke Katin ID",
       back: "Baya",
       phoneError: "Lambar waya dole ta kasance lamba 11.",
+      ninError: "NIN dole ta kasance lamba 11.",
+      phoneOrNinRequired: "A saka aƙalla Lambar Waya ko NIN.",
       lgaSelectionError: "Zaɓi aƙalla LGA 1 (matsakaicin 3).",
       mineralSelectionError: "Zaɓi aƙalla nau'in ma'adani 1 (matsakaicin 3).",
       stateError: "Ana bukatar Jiha.",
@@ -513,6 +519,7 @@
     formData: {
       name: "",
       phone: "",
+      nin: "",
       stateName: "Yobe",
       address: "",
       mineralSearchQuery: "",
@@ -1068,6 +1075,7 @@
               id: d.id || d.ID || d.Id || d.artisanId || d.ArtisanId || "",
               name: d.name || d.Full_Name || d.fullName || "—",
               phone: d.phone || d.Phone || "",
+              nin: pickFirst(d, ["nin", "NIN"]) || "",
               stateName: normalizeStateName(d.stateName || d.state || d.State || "Yobe"),
               address: d.address || d.Address || "",
               lgas,
@@ -1439,6 +1447,7 @@
     state.formData = {
       name: "",
       phone: "",
+      nin: "",
       stateName: "Yobe",
       address: "",
       mineralSearchQuery: "",
@@ -1551,6 +1560,7 @@
       );
       state.formData.address = pickFirst(d, ["address", "Address"]) || "";
       state.formData.phone = pickFirst(d, ["phone", "Phone"]) || "";
+      state.formData.nin = pickFirst(d, ["nin", "NIN"]) || "";
       state.formData.photoURL = resolvePhotoFromRecord(d, ASSETS.miningLogo);
       const expRaw = pickFirst(d, ["expiryDate", "ExpiryDate", "expiry", "Expiry"]);
       state.expiryDate = expRaw ? new Date(expRaw) : addYears(1);
@@ -2091,7 +2101,8 @@
     state.formData.lga = state.formData.lgas[0] || LGAs[0];
     state.formData.mineral = state.formData.minerals[0] || "Gypsum";
     state.formData.photoURL = normalizePhotoURL(a.photoURL || null);
-    state.formData.phone = a.phone || "08000000000";
+    state.formData.phone = a.phone || "";
+    state.formData.nin = pickFirst(a, ["nin", "NIN"]) || "";
     window.setView("artisan-form");
   };
 
@@ -2160,12 +2171,16 @@
     const name = String(state.formData.name || "").trim();
     const phone = String(state.formData.phone || "");
     const cleanPhone = phone.replace(/[^0-9]/g, "");
+    const nin = String(state.formData.nin || "");
+    const cleanNin = nin.replace(/[^0-9]/g, "");
     const stateName = String(state.formData.stateName || "").trim();
     const address = String(state.formData.address || "").trim();
     const lgas = normalizeSelection(state.formData.lgas, null);
     const minerals = normalizeSelection(state.formData.minerals, null);
 
-    if (cleanPhone.length !== 11) errors.push(t("phoneError"));
+    if (!cleanPhone && !cleanNin) errors.push(t("phoneOrNinRequired"));
+    if (cleanPhone && cleanPhone.length !== 11) errors.push(t("phoneError"));
+    if (cleanNin && cleanNin.length !== 11) errors.push(t("ninError"));
     if (!name) errors.push(t("required"));
     if (!stateName) errors.push(t("stateError"));
     if (!address) errors.push(t("addressError"));
@@ -2216,6 +2231,7 @@
           mineralList: minerals.join(", "),
           photoURL: normalizePhotoURL(state.formData.photoURL),
           phone: state.formData.phone,
+          nin: state.formData.nin,
           updatedAt: new Date().toISOString(),
         };
         state.applications[idx] = updatedApp;
@@ -2263,6 +2279,7 @@
       fee: 20000,
       name: state.formData.name,
       phone: state.formData.phone,
+      nin: state.formData.nin,
       stateName: state.formData.stateName,
       state: state.formData.stateName,
       address: state.formData.address,
@@ -2297,7 +2314,7 @@
 
     setTimeout(() => {
       state.isLoading = false;
-      state.statusLookupInput = state.formData.phone || "";
+      state.statusLookupInput = state.formData.phone || state.generatedId || "";
       window.setView("status-check");
     }, 900);
   };
@@ -2339,7 +2356,7 @@
 
     if (!verification.ok || !verification.accountName) {
       uiAlert(
-        "Invalid PIN. Use your active PIN."
+        "Invalid PIN. Use your active PIN. First-time users should use default PIN: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722), Executive (3333)."
       );
       state.authSigningIn = false;
       if (btn) {
@@ -3298,6 +3315,15 @@
         "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 11); state.formData.phone = this.value",
         11
       ) +
+      renderInput(
+        t("formNin"),
+        "inp-nin",
+        "text",
+        "12345678901",
+        state.formData.nin,
+        "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 11); state.formData.nin = this.value",
+        11
+      ) +
       renderSelect(
         t("formState"),
         "sel-state",
@@ -3440,7 +3466,7 @@
       t("success") +
       "</h2>" +
       '<p class="text-sm text-gray-600 mb-6 text-center max-w-lg">Your registration is submitted and awaiting staff approval. ID viewing/download is available only after approval.</p>' +
-      '<p class="text-xs text-gray-500 mb-8">Use your phone number to verify status.</p>' +
+      '<p class="text-xs text-gray-500 mb-8">Use your phone number (if provided) or Artisan ID to verify status.</p>' +
       '<div class="flex gap-4 flex-wrap justify-center">' +
       '<button onclick="setView(\'status-check\')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition flex items-center gap-2">' +
       Icon("search") +
@@ -4548,7 +4574,7 @@
         "</button>" +
         '<div class="bg-white rounded-2xl shadow-xl p-6 text-center">' +
         '<h2 class="text-xl font-bold text-gray-800 mb-2">Check ID Status</h2>' +
-        '<p class="text-xs text-gray-500 mb-3">Enter phone number (recommended) or Artisan ID.</p>' +
+        '<p class="text-xs text-gray-500 mb-3">Enter phone number (if provided) or Artisan ID.</p>' +
         '<input id="status-input" type="text" maxlength="11" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="08012345678 or ART-XXXXXX" value="' +
         escHtml(state.statusLookupInput || "") +
         '" oninput="state.statusLookupInput = this.value" />' +
