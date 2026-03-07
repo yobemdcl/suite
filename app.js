@@ -10,13 +10,14 @@
 
 
   // =========================
-  // STAFF LOGIN (4 staff)
+  // STAFF LOGIN (5 staff)
   // =========================
   const STAFF_ACCOUNTS = {
     "3963": { name: "Umar Umar Muhammad", role: "staff" },
     "1867": { name: "Engr Mohammed Bello", role: "staff" },
     "2651": { name: "Mubarak Hussaini Tinja", role: "staff" },
     "5722": { name: "Suleiman Ibrahim Gimba", role: "staff" },
+    "3077": { name: "Usman Mohammed Jajere", role: "staff", phone: "08160923077" },
     "3333": { name: "Executive", role: "md" },
   };
 
@@ -2356,7 +2357,7 @@
 
     if (!verification.ok || !verification.accountName) {
       uiAlert(
-        "Invalid PIN. Use your active PIN. First-time users should use default PIN: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722), Executive (3333)."
+        "Invalid PIN. Use your active PIN. First-time users should use default PIN: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722), Usman Mohammed Jajere (3077), Executive (3333)."
       );
       state.authSigningIn = false;
       if (btn) {
