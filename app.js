@@ -511,6 +511,7 @@
 
     adminSearch: "",
     adminStatusFilter: "All",
+    adminLocationFilter: "All",
     adminSortMode: "pendingFirst",
     applications: [],
     previewAppId: null,
@@ -2033,6 +2034,10 @@
   };
   window.setAdminStatusFilter = function (val) {
     state.adminStatusFilter = val || "All";
+    render();
+  };
+  window.setAdminLocationFilter = function (val) {
+    state.adminLocationFilter = val || "All";
     render();
   };
   window.setAdminSortMode = function (val) {
@@ -3818,9 +3823,18 @@
 
   function renderAdminDashboard() {
     const statusFilter = String(state.adminStatusFilter || "All");
+    const locationFilter = String(state.adminLocationFilter || "All");
     const sortMode = String(state.adminSortMode || "pendingFirst");
+    const locationOptions = Array.from(
+      new Set(
+        state.applications
+          .map((a) => String(a.location || a.lga || "—").trim() || "—")
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
     const filteredApps = state.applications.filter((a) => {
       const status = String(a.status || "Pending");
+      const location = String(a.location || a.lga || "—").trim() || "—";
       const matchesSearch =
         String(a.name || "").toLowerCase().includes(state.adminSearch) ||
         String(a.id || "").toLowerCase().includes(state.adminSearch);
@@ -3828,7 +3842,8 @@
         statusFilter === "All"
           ? true
           : status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesStatus;
+      const matchesLocation = locationFilter === "All" ? true : location === locationFilter;
+      return matchesSearch && matchesStatus && matchesLocation;
     });
     const statusPriority = (status) => {
       const s = String(status || "").toLowerCase();
@@ -3859,6 +3874,16 @@
         const ta = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0;
         const tb = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0;
         if (ta !== tb) return ta - tb;
+      } else if (sortMode === "locationAZ") {
+        const la = String(a.location || a.lga || "—");
+        const lb = String(b.location || b.lga || "—");
+        const d = la.localeCompare(lb);
+        if (d !== 0) return d;
+      } else if (sortMode === "locationZA") {
+        const la = String(a.location || a.lga || "—");
+        const lb = String(b.location || b.lga || "—");
+        const d = lb.localeCompare(la);
+        if (d !== 0) return d;
       } else {
         const d = statusPriority(aStatus) - statusPriority(bStatus);
         if (d !== 0) return d;
@@ -3987,6 +4012,22 @@
       (statusFilter === "Rejected" ? " selected" : "") +
       ">Rejected</option>" +
       "</select>" +
+      '<select onchange="setAdminLocationFilter(this.value)" class="w-full md:w-44 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
+      '<option value="All">All Locations</option>' +
+      locationOptions
+        .map(function (loc) {
+          return (
+            '<option value="' +
+            escHtml(loc) +
+            '"' +
+            (locationFilter === loc ? " selected" : "") +
+            ">" +
+            escHtml(loc) +
+            "</option>"
+          );
+        })
+        .join("") +
+      "</select>" +
       '<select onchange="setAdminSortMode(this.value)" class="w-full md:w-44 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
       '<option value="pendingFirst"' +
       (sortMode === "pendingFirst" ? " selected" : "") +
@@ -4000,6 +4041,12 @@
       '<option value="oldest"' +
       (sortMode === "oldest" ? " selected" : "") +
       ">Sort: Oldest</option>" +
+      '<option value="locationAZ"' +
+      (sortMode === "locationAZ" ? " selected" : "") +
+      ">Sort: Location A-Z</option>" +
+      '<option value="locationZA"' +
+      (sortMode === "locationZA" ? " selected" : "") +
+      ">Sort: Location Z-A</option>" +
       "</select>" +
       "</div>" +
       '<div class="flex flex-wrap gap-2 justify-start md:justify-end">' +
