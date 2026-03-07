@@ -510,6 +510,8 @@
     scanLogs: [],
 
     adminSearch: "",
+    adminStatusFilter: "All",
+    adminSortMode: "pendingFirst",
     applications: [],
     previewAppId: null,
 
@@ -2027,6 +2029,14 @@
   // =========================
   window.handleAdminSearch = function (event) {
     state.adminSearch = (event.target.value || "").toLowerCase();
+    render();
+  };
+  window.setAdminStatusFilter = function (val) {
+    state.adminStatusFilter = val || "All";
+    render();
+  };
+  window.setAdminSortMode = function (val) {
+    state.adminSortMode = val || "pendingFirst";
     render();
   };
 
@@ -3807,11 +3817,55 @@
   }
 
   function renderAdminDashboard() {
-    const filteredApps = state.applications.filter(
-      (a) =>
+    const statusFilter = String(state.adminStatusFilter || "All");
+    const sortMode = String(state.adminSortMode || "pendingFirst");
+    const filteredApps = state.applications.filter((a) => {
+      const status = String(a.status || "Pending");
+      const matchesSearch =
         String(a.name || "").toLowerCase().includes(state.adminSearch) ||
-        String(a.id || "").toLowerCase().includes(state.adminSearch)
-    );
+        String(a.id || "").toLowerCase().includes(state.adminSearch);
+      const matchesStatus =
+        statusFilter === "All"
+          ? true
+          : status.toLowerCase() === statusFilter.toLowerCase();
+      return matchesSearch && matchesStatus;
+    });
+    const statusPriority = (status) => {
+      const s = String(status || "").toLowerCase();
+      if (s === "pending") return 0;
+      if (s === "approved") return 1;
+      if (s === "rejected") return 2;
+      return 3;
+    };
+    const sortedApps = filteredApps.slice().sort((a, b) => {
+      const aStatus = String(a.status || "Pending");
+      const bStatus = String(b.status || "Pending");
+
+      if (sortMode === "approvedFirst") {
+        const approvedFirstPriority = (status) => {
+          const s = String(status || "").toLowerCase();
+          if (s === "approved") return 0;
+          if (s === "pending") return 1;
+          if (s === "rejected") return 2;
+          return 3;
+        };
+        const d = approvedFirstPriority(aStatus) - approvedFirstPriority(bStatus);
+        if (d !== 0) return d;
+      } else if (sortMode === "newest") {
+        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0;
+        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0;
+        if (tb !== ta) return tb - ta;
+      } else if (sortMode === "oldest") {
+        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0;
+        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0;
+        if (ta !== tb) return ta - tb;
+      } else {
+        const d = statusPriority(aStatus) - statusPriority(bStatus);
+        if (d !== 0) return d;
+      }
+
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
     const pendingCount = state.applications.filter((a) => (a.status || "Pending") === "Pending").length;
 
     const loc = state.staffLocStatus;
@@ -3913,12 +3967,40 @@
       '<h3 class="font-bold text-gray-800 flex items-center gap-2">' +
       Icon("inbox", "w-5 h-5 text-gray-500") +
       " Miner Records Queue</h3>" +
-      '<div class="relative w-full md:w-56">' +
+      '<div class="relative w-full md:w-52">' +
       '<input type="text" oninput="handleAdminSearch(event)" placeholder="Search..." class="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
       '<div class="absolute left-2.5 top-2.5 text-gray-400">' +
       Icon("search", "w-3 h-3") +
       "</div>" +
       "</div>" +
+      '<select onchange="setAdminStatusFilter(this.value)" class="w-full md:w-40 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
+      '<option value="All"' +
+      (statusFilter === "All" ? " selected" : "") +
+      ">All Status</option>" +
+      '<option value="Pending"' +
+      (statusFilter === "Pending" ? " selected" : "") +
+      ">Pending</option>" +
+      '<option value="Approved"' +
+      (statusFilter === "Approved" ? " selected" : "") +
+      ">Approved</option>" +
+      '<option value="Rejected"' +
+      (statusFilter === "Rejected" ? " selected" : "") +
+      ">Rejected</option>" +
+      "</select>" +
+      '<select onchange="setAdminSortMode(this.value)" class="w-full md:w-44 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
+      '<option value="pendingFirst"' +
+      (sortMode === "pendingFirst" ? " selected" : "") +
+      ">Sort: Pending First</option>" +
+      '<option value="approvedFirst"' +
+      (sortMode === "approvedFirst" ? " selected" : "") +
+      ">Sort: Approved First</option>" +
+      '<option value="newest"' +
+      (sortMode === "newest" ? " selected" : "") +
+      ">Sort: Newest</option>" +
+      '<option value="oldest"' +
+      (sortMode === "oldest" ? " selected" : "") +
+      ">Sort: Oldest</option>" +
+      "</select>" +
       "</div>" +
       '<div class="flex flex-wrap gap-2 justify-start md:justify-end">' +
       '<button onclick="openRegisterMiner()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
@@ -3945,7 +4027,7 @@
       "</tr>" +
       "</thead>" +
       '<tbody class="divide-y divide-gray-100">' +
-      filteredApps
+      sortedApps
         .map((a) => {
           const status = a.status || "Pending";
           const statusClass =
@@ -4012,7 +4094,7 @@
           );
         })
         .join("") +
-      (filteredApps.length === 0
+      (sortedApps.length === 0
         ? '<tr><td colspan="4" class="px-6 py-6 text-center text-gray-500">No records found.</td></tr>'
         : "") +
       "</tbody>" +
