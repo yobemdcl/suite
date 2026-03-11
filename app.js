@@ -1086,11 +1086,20 @@
     lsSet(LS_KEYS.scanLogs, state.scanLogs);
   }
 
-  function hydrateLocal() {
-    state.applications = safeArray(lsGet(LS_KEYS.artisans, []));
-    state.exitLogs = safeArray(lsGet(LS_KEYS.exitLogs, []));
-    state.staffLocations = safeArray(lsGet(LS_KEYS.staffLocs, []));
-    state.scanLogs = safeArray(lsGet(LS_KEYS.scanLogs, []));
+  function hydrateLocal(opts) {
+    const options = opts || {};
+    if (!options.skipApplications) {
+      state.applications = safeArray(lsGet(LS_KEYS.artisans, []));
+    }
+    if (!options.skipExitLogs) {
+      state.exitLogs = safeArray(lsGet(LS_KEYS.exitLogs, []));
+    }
+    if (!options.skipStaffLocs) {
+      state.staffLocations = safeArray(lsGet(LS_KEYS.staffLocs, []));
+    }
+    if (!options.skipScanLogs) {
+      state.scanLogs = safeArray(lsGet(LS_KEYS.scanLogs, []));
+    }
   }
 
   // =========================
@@ -1182,7 +1191,7 @@
   // Load Exit Logs
   // =========================
   async function loadExitLogs() {
-    hydrateLocal();
+    hydrateLocal({ skipApplications: true, skipStaffLocs: true, skipScanLogs: true });
 
     try {
       const exitLogs = await callBackend({ action: "readSheet", sheet: "ExitLogs" });
@@ -1387,7 +1396,7 @@
   }
 
   async function loadMDData() {
-    hydrateLocal();
+    hydrateLocal({ skipApplications: true });
 
     try {
       const [scanLogs, exitLogs, staffLocs] = await Promise.all([
