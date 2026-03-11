@@ -881,12 +881,23 @@
     const ninDigits = digitsOnly(pickFirst(rec, ["nin", "NIN"]));
     if (ninDigits.length >= 6) return "ART-" + ninDigits.slice(-6);
 
+    const name = String(pickFirst(rec, ["name", "Name", "Full_Name", "fullName"]) || "").trim();
+    if (!name) return "";
+
     const seed = [
       pickFirst(rec, ["createdAt", "CreatedAt", "timestamp", "Timestamp", "issueDate", "IssueDate"]) || "",
-      pickFirst(rec, ["name", "Name", "Full_Name", "fullName"]) || "",
+      name,
       String(rowIndex || 0),
     ].join("|");
     return "ART-" + hashToSixDigits(seed);
+  }
+
+  function isLikelyArtisanRecord(rec) {
+    const id = extractArtisanId(pickFirst(rec, ["id", "ID", "Id", "artisanId", "ArtisanId"]));
+    const name = String(pickFirst(rec, ["name", "Name", "Full_Name", "fullName"]) || "").trim();
+    const phone = digitsOnly(pickFirst(rec, ["phone", "Phone"]));
+    const nin = digitsOnly(pickFirst(rec, ["nin", "NIN"]));
+    return !!(id || name || phone || nin);
   }
 
   function normalizeSelection(input, fallback) {
@@ -1101,7 +1112,9 @@
         Array.isArray(artisans.data)
       ) {
         raw.push(
-          ...artisans.data.map((d, rowIndex) => {
+          ...artisans.data
+            .filter((d) => d && isLikelyArtisanRecord(d))
+            .map((d, rowIndex) => {
             const lgas = parseRecordLgas(d);
             const minerals = parseRecordMinerals(d);
             return {
