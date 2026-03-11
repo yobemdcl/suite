@@ -858,6 +858,37 @@
     return pickBestRecord(Array.from(byId.values()));
   }
 
+  function hashToSixDigits(input) {
+    const s = String(input || "");
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    }
+    return String(h % 1000000).padStart(6, "0");
+  }
+
+  function ensureArtisanId(rec, rowIndex) {
+    const rawId = pickFirst(rec, ["id", "ID", "Id", "artisanId", "ArtisanId"]);
+    const parsed = extractArtisanId(rawId);
+    if (parsed) return parsed;
+
+    const idDigits = digitsOnly(rawId);
+    if (idDigits.length >= 6) return "ART-" + idDigits.slice(-6);
+
+    const phoneDigits = digitsOnly(pickFirst(rec, ["phone", "Phone"]));
+    if (phoneDigits.length >= 6) return "ART-" + phoneDigits.slice(-6);
+
+    const ninDigits = digitsOnly(pickFirst(rec, ["nin", "NIN"]));
+    if (ninDigits.length >= 6) return "ART-" + ninDigits.slice(-6);
+
+    const seed = [
+      pickFirst(rec, ["createdAt", "CreatedAt", "timestamp", "Timestamp", "issueDate", "IssueDate"]) || "",
+      pickFirst(rec, ["name", "Name", "Full_Name", "fullName"]) || "",
+      String(rowIndex || 0),
+    ].join("|");
+    return "ART-" + hashToSixDigits(seed);
+  }
+
   function normalizeSelection(input, fallback) {
     const arr = Array.isArray(input) ? input : String(input || "").split(/[;,|]/);
     const set = new Set(
@@ -1070,13 +1101,13 @@
         Array.isArray(artisans.data)
       ) {
         raw.push(
-          ...artisans.data.map((d) => {
+          ...artisans.data.map((d, rowIndex) => {
             const lgas = parseRecordLgas(d);
             const minerals = parseRecordMinerals(d);
             return {
               ...d,
               type: "Artisan",
-              id: d.id || d.ID || d.Id || d.artisanId || d.ArtisanId || "",
+              id: ensureArtisanId(d, rowIndex),
               name: d.name || d.Full_Name || d.fullName || "—",
               phone: d.phone || d.Phone || "",
               nin: pickFirst(d, ["nin", "NIN"]) || "",
