@@ -2854,7 +2854,7 @@
 
     if (!verification.ok || !verification.accountName) {
       uiAlert(
-        "Invalid PIN. Use your active PIN. First-time users should use default PIN: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722), Usman Mohammed Jajere (3077), Executive (3333)."
+        "Invalid PIN. Use your active PIN. First-time users should use default PIN."
       );
       state.authSigningIn = false;
       if (btn) {
