@@ -2854,7 +2854,7 @@
 
     if (!verification.ok || !verification.accountName) {
       uiAlert(
-        "Invalid PIN. Use your active PIN. First-time users should use default PIN."
+        "Invalid PIN. Use your active PIN. First-time users should use default PIN: Umar Umar Muhammad (3963), Engr Mohammed Bello (1867), Mubarak Hussaini Tinja (2651), Suleiman Ibrahim Gimba (5722), Usman Mohammed Jajere (3077), Executive (3333)."
       );
       state.authSigningIn = false;
       if (btn) {
@@ -3909,7 +3909,7 @@
     const specialFields =
       '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
       renderInput("Name", "glc-name", "text", "Musa Ibrahim", state.formData.name, "state.formData.name = this.value") +
-      renderInput("Age", "glc-age", "number", "35", state.formData.age, "state.formData.age = this.value") +
+      renderInput("Age", "glc-age", "number", "35", state.formData.age, "this.value = this.value.replace(/[^0-9]/g,''); state.formData.age = this.value") +
       "</div>" +
       '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
       renderSelect("Card Type", "glc-card-type", ["GLC", "GLCW"], state.formData.cardType, "state.formData.cardType = this.value") +
@@ -4005,10 +4005,10 @@
       renderInput(
         "Years in Mining",
         "glc-years",
-        "text",
-        "e.g. 10 years",
+        "number",
+        "10",
         state.formData.yearsInMining,
-        "state.formData.yearsInMining = this.value"
+        "this.value = this.value.replace(/[^0-9]/g,''); state.formData.yearsInMining = this.value"
       ) +
       renderTextarea(
         "Mining Experience",
@@ -4021,16 +4021,15 @@
       renderInput(
         "Monthly Income (Non Gold)",
         "glc-income",
-        "text",
-        "Optional",
+        "number",
+        "0",
         state.formData.monthlyIncome,
-        "state.formData.monthlyIncome = this.value"
+        "this.value = this.value.replace(/[^0-9]/g,''); state.formData.monthlyIncome = this.value"
       ) +
-      renderInput(
+      renderSelect(
         "Religion",
         "glc-religion",
-        "text",
-        "Optional",
+        ["", "Christian", "Muslim"],
         state.formData.religion,
         "state.formData.religion = this.value"
       ) +
