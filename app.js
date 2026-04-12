@@ -4008,7 +4008,8 @@
         "number",
         "10",
         state.formData.yearsInMining,
-        "this.value = this.value.replace(/[^0-9]/g,''); state.formData.yearsInMining = this.value"
+        "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 2); if (this.value && Number(this.value) > 99) this.value = '99'; state.formData.yearsInMining = this.value",
+        2
       ) +
       renderTextarea(
         "Mining Experience",
