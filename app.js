@@ -360,21 +360,6 @@
     "Yusufari",
   ];
 
-  const SPECIAL_COMMUNITIES_BY_LGA = {
-    Gulani: ["KUKUWA GARI", "SHISHIWAJI", "MANAWAJI", "DOKSHI", "ZANGO"],
-    Gujba: ["LIGDIR", "KUKUWA TASHA"],
-  };
-  const SPECIAL_COMMUNITY_TO_LGA = Object.entries(SPECIAL_COMMUNITIES_BY_LGA).reduce(
-    (acc, [lga, communities]) => {
-      (communities || []).forEach((community) => {
-        acc[String(community)] = lga;
-      });
-      return acc;
-    },
-    {}
-  );
-  const SPECIAL_COMMUNITY_NAMES = Object.keys(SPECIAL_COMMUNITY_TO_LGA);
-
   const STATES = [
     "Abia",
     "Adamawa",
@@ -414,6 +399,291 @@
     "Yobe",
     "Zamfara",
   ];
+
+  const COMMUNITY_POSTAL_ROWS = [
+    {
+      lga: "Bade",
+      district: "Bade",
+      postalCode: "631101",
+      villages:
+        "Adia; Alagarno; Amshi; Azam; Bursari; Chirawa; Dalia; Dikum; Dogona; Gabaruwa; Gapchia; Garin-Dallari; Garinkura; Gasamu; Gashua; Gogaram; Gweek; Gwuiyo; Jawa; Jawun; Karage; Katamba; Katuzu; Lawan-Alwali; Lawan-Audu; Lawan-Fani; Lawan-Musa; LawanFannam; Muguram; N.A Kaku; Ngelewa; Ngeliabe; Sarkin-Hausawa; Tagli; Tarjiwa; Wasur; Yakuburi; Zabadam",
+    },
+    {
+      lga: "Bursari",
+      district: "Bursari",
+      postalCode: "620103",
+      villages:
+        "Bade Gana; Bayammari; Bula; Buruta; Butsari; Damana; Damanawa; Dambuk; Danani; Dapchi; Gadiriri; Gareji Tsamowa; Garin Alhaji; Garin Boka; Garin Lamido; Garindole; Giljabi; Giruwon; Gojiji Korem; Goroji; Gruawa; Guba; Guji; Gumsa Gama; Jafinori; Jibirinti; Juluri; Kajimaram; Kariari; Kindilwa; Komandugu; Kurnawa; Massaba; Shettimari; Sundwa; Warodi; Yobe",
+    },
+    {
+      lga: "Damaturu",
+      district: "Damaturu (Rural)",
+      postalCode: "620101",
+      villages:
+        "Bula Kus; Bulaburum; Bulama Fordi; Chungul Dambaram; Chungul Jabbari; Damakasu; Damburam; Dankalwa; Debsa; Gabai; Garin Maisaja; Goni Matar; Gorogi; Gubberi; Gulamarram; Gumunta; Itsari; Kaburu; Kaita; Kalalawa; Kontula; Korari; Kuilamu; Kukareta; Kunguwol; Kuskuri; Makunari; Malamuhari; Mallam Tari; Marta; Nuw; Sasawa",
+    },
+    {
+      lga: "Fika",
+      district: "Fika",
+      postalCode: "622104",
+      villages:
+        "Anzie; Boza; Bulakos; Chana; Daniski; Daya; Didim; Diffuel; Dozi; Dumbulwa; Fika; Fusami; Gadaka; Galamo; Garin Aba; Garin Jaji; Garin Wayo; Gashaka; Gashinge; Gashua; Godowoli; Gudi; Gurijaji; Jaga; Jamgadole; Jangarsiri; Kadi; Karem; Lewe; Maiduwa; Maluri; Mazawun; Mubi; Ngaida; Paiono; Shembire; Shoye T.Nanai; Turmi; Yelwa; Zei",
+    },
+    {
+      lga: "Fune",
+      district: "Fune",
+      postalCode: "622105",
+      villages:
+        "Abakire; Aigada; Alagarno; Balanyiwa; Bam; Banshe; Basam; Bauwa; Bindigi; Bufuna; Bulakus; Chirokusko; Damagum; Dawura; Dogonkuka; Dubbol; Dumbulwa; Fajalare; Fulatari; Fune; Gabatasha; Gishiwari; Goyeri; Gremari; Gudugurka; Gunnga; Gununu; Jajere; Jamari; Jauro Bukar; Jauro Isa; Jika; Kafaje; Kamarum; Kasko; Kayeri; Kolere; Koriel; Kwajula; Kwalte; Lawan-Kalam; Manawaji; Manwaji; Mashio marmari; Mil-Biyar; Ngelshengale; Ngelzarma; Shamaka; Sudande; Tailai",
+    },
+    {
+      lga: "Geidam",
+      district: "Geidam",
+      postalCode: "632101",
+      villages:
+        "Abachari; Ashekri; Badi; Balle; Bisuga; Borko; Chirawa; Dabkariba; Dagambi; Damakarwa; Dejina; Dilawa; Fakuri; Futchimiran; Galaria; Gallaba; Geidam; Gosora; Gumsa; Hausari; Karamti; Kawuri; Keleri; Kelluri; Korkio; Kukoram; Kusur; Kwiri; Lariski; Maannam; Magario; Maidari; Maleri; Murimari; Musari; Nallewa; Rogo; Shame-Kura; Zugu-Ngilewa",
+    },
+    {
+      lga: "Gujba",
+      district: "Gujba",
+      postalCode: "621101",
+      villages:
+        "Bara; Bokwai; Borno-Kiji; Bukul; Bularaba; Bulturam; Bumsa; Buni Gari; Buni-Yadi; Chandam; Dadingel; Dadma; Dikshi; Garinchina; Gatumba; Gazagana; Gominja; Goriri; Gotala; Gotumba; Gujba; Gulani; Gutunia; Kaduba; Katarko; Kolere Bomo; Ligda; Mafeni; Maladuwari; Mallam-Dunari; Mandum; Matal; Ngeltawa; Ngumal; Ngurbuwa; Njibulwa; Shinda; Taro; Wagun; Waranya",
+    },
+    {
+      lga: "Gulani",
+      district: "Gulani",
+      postalCode: "621102",
+      villages:
+        "Bara; Borno-Kiji; Bularaba; Bumsa; Burasari; Chandam; Dokshi; Gabai; Gagure; Gargari; Garin Tuwo; Kukuwa; Kushimaga; Ngulwa; Ngurun; Nguzoa; Ruhu; Tetteba; Zango",
+    },
+    {
+      lga: "Jakusko",
+      district: "Jakusko",
+      postalCode: "631102",
+      villages:
+        "Bayam; Buduwa; Daifa; Dudua; Dumbari; Gamajam; Ganya; Garin Maiturmi; Garinsalha; Gibbo; Gidigid; Gogaram; Goldimari; Gurunga; Jaba; Jakusko; Japbo; Japoji; Jawur; Katamona; Labo; Lafiya-Loi; Muguram; N.Gambo; Nasari; Ngelsom; Saminaka; Zabudum; Zeddi",
+    },
+    {
+      lga: "Karasuwa",
+      district: "Karasuwa",
+      postalCode: "630103",
+      villages:
+        "Bukarti; Fajiganari; Garin Gawo; Garu-Guna; Gasma; Jaji-Maji; Karasuwa; Waro; Yajiri; Wachakal; Kafetuwa; Dalari; Abaridi; Madugabari; Mamiram; Lamido Audu; Kinnariram; Kilbuwa; Tatikori; Garin Malam; Simeldi; Garin Alhaji; Garin Gyada; Kwana; Barderi; Melawuri; Bukku; Dunari; Maina Ari; Gawu; Mala Kunu; Alajiri; Chumbusko; Zolo; Damamini; Dogon Jeji; Rumfar Kara; Tasha Kargo; Lamido Ngaine; Hardo Kabo; Garin Mammadu; Karau Kawu; Wuri Bawuri; Lamido Hassan; Jajeri; Garin Jarma; Zango; Tabawa; Daban Giwa; Ngurodi",
+    },
+    {
+      lga: "Machina",
+      district: "Machina",
+      postalCode: "630102",
+      villages:
+        "Adturu; Barinari-Lamiri; Bogo; Bulseri; Damai; Dimago; Dole; Faramiram; Flimaram; Garin; Garin Kinna; Garwadole; Gogi; Gunsi; Kabaduna; Kabera; Kom-Komma; Koremarun; Kuka-Yasku; Lamisu; Machina; Mamada; Maskandare; Maskarari; Meori; Sabawa; Shekori; Tagamama",
+    },
+    {
+      lga: "Nangere",
+      district: "Mamudo",
+      postalCode: "622103",
+      villages: "Bala; Dakasko; Garintuja; Mamudo",
+    },
+    {
+      lga: "Nangere",
+      district: "Nangere",
+      postalCode: "622102",
+      villages: "Dowasa; Fakarau; Garin Gambo; Kukuri; Nangere; Tarajim",
+    },
+    {
+      lga: "Nguru",
+      district: "Nguru (Rural)",
+      postalCode: "630101",
+      villages:
+        "Aroro; Bajigama; Bakwa; Bambori; Bilelam; Bujiji; Bulabulin; Bulangua; Bulanguaram; Buleri; Bundi; Dadara; Dogana; Dogon-Kuka; Dumsai; Garbi; Garin Malum; Garin Naruwa; Hausari; Jigamari; Kakori; Kanuri; Karanbari; Kisogana; Maidashi; Maja-Kura; Mamnia; Margadu; Masari; Mirba-Kabir; Mirba-Sagir; Ngilewa; Tashakang; Wazzagl; Wusur; Yamdem; Yamdugu; Zolo",
+    },
+    {
+      lga: "Potiskum",
+      district: "Potiskum",
+      postalCode: "622101",
+      villages: "Alaraba; Badejo; Chalumno; Dagare; Daniski; Daria; Dazigal; Kukargadu; Potiskum; Siminti",
+    },
+    {
+      lga: "Tarmuwa",
+      district: "Tarmuwa",
+      postalCode: "620102",
+      villages:
+        "Babangida; Barkami; Biriri; Borno-Kiji; Bulturi; Churokusko; Dabala; Garga; Jumbam; Lantaiwa; Mandadawa; Shegau",
+    },
+    {
+      lga: "Yusufari",
+      district: "Yusufari",
+      postalCode: "632102",
+      villages:
+        "Baituwa; Bomba; Bukti; Bulabulin; Buluk Buluk; Chillima; Chokolo; Damatoshia; Dekwe; Dilala; Diriti; Dogaltura; Garin Kaigama; Gremadi; Gremari; Gursula; Jilo; Kafaje; Kalgi; Kanamma; Karaguwa; Karigi; Konta Kunu; Kusur; Mairari; Malgawa; Mar; Maruduari; Mineklbu; Mosogun; Ngamzai; Ngirabo; Sasamna; Sumbal; Umari; Wadi; Yaro; Yunusari; Zagibinri; Zedi",
+    },
+    {
+      lga: "Yusufari",
+      district: "Yusufari",
+      postalCode: "631103",
+      villages:
+        "Alagiri; Alanjirori; Budum; Bukardi; Bula Madu; Bulatula; Bunsar; Burari; Garin Lawan; Garin Momodu; Gayuameri; Grema Burari; Gulmiri; Gumsi; Guya; Hangilam; Jebuwa; Jogua; Kajimaram; Kaska; Kulala; Kurusalia; Lalawa; Ligarikura; Maimalari; Mayori; Ndiju; Njikilamma; Sumbar; Tilotoluwa; Yusufari; Zingidi; Zumug",
+    },
+  ];
+
+  const SPECIAL_COMMUNITIES = [
+    "KUKUWA GARI",
+    "SHISHIWAJI",
+    "MANAWAJI",
+    "DOKSHI",
+    "ZANGO",
+    "LIGDIR",
+    "KUKUWA TASHA",
+  ];
+  const SPECIAL_COMMUNITIES_BY_LGA = {
+    Gulani: ["KUKUWA GARI", "SHISHIWAJI", "MANAWAJI", "DOKSHI", "ZANGO"],
+    Gujba: ["LIGDIR", "KUKUWA TASHA"],
+  };
+
+  function normalizeCommunityKey(value) {
+    return String(value || "")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "");
+  }
+
+  const SPECIAL_COMMUNITY_KEYS = new Set(
+    SPECIAL_COMMUNITIES.map((name) => normalizeCommunityKey(name))
+  );
+
+  const COMMUNITY_META = (() => {
+    const map = new Map();
+    COMMUNITY_POSTAL_ROWS.forEach((row) => {
+      String(row.villages || "")
+        .split(";")
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+        .forEach((village) => {
+          map.set(normalizeCommunityKey(village), {
+            community: village,
+            lga: row.lga,
+            district: row.district,
+            postalCode: row.postalCode,
+          });
+        });
+    });
+
+    SPECIAL_COMMUNITIES.forEach((community) => {
+      const key = normalizeCommunityKey(community);
+      const enforcedLga =
+        Object.entries(SPECIAL_COMMUNITIES_BY_LGA).find(([, communities]) =>
+          communities.includes(community)
+        )?.[0] || "";
+      const existing = map.get(key);
+      map.set(key, {
+        community,
+        lga: enforcedLga || existing?.lga || "",
+        district: existing?.district || "",
+        postalCode: existing?.postalCode || "",
+      });
+    });
+
+    return map;
+  })();
+
+  const COMMUNITY_OPTIONS = Array.from(
+    Array.from(COMMUNITY_META.values()).reduce((acc, item) => {
+      const key = normalizeCommunityKey(item.community);
+      if (!acc.has(key)) acc.set(key, item);
+      return acc;
+    }, new Map()).values()
+  ).sort((a, b) => a.community.localeCompare(b.community));
+
+  const SPECIAL_COMMUNITY_OPTIONS = SPECIAL_COMMUNITIES.map((community) => {
+    const meta = COMMUNITY_META.get(normalizeCommunityKey(community)) || null;
+    return {
+      community,
+      lga: meta?.lga || "",
+      district: meta?.district || "",
+      postalCode: meta?.postalCode || "",
+    };
+  });
+
+  const SPECIAL_LGAS = Object.keys(SPECIAL_COMMUNITIES_BY_LGA);
+
+  function getSpecialCommunitiesByLga(lga) {
+    const target = String(lga || "").trim();
+    return (SPECIAL_COMMUNITIES_BY_LGA[target] || []).map((community) => {
+      const meta = COMMUNITY_META.get(normalizeCommunityKey(community)) || null;
+      return {
+        community,
+        lga: target,
+        district: meta?.district || "",
+        postalCode: meta?.postalCode || "",
+      };
+    });
+  }
+
+  function isSpecialCommunitySelection(value) {
+    return SPECIAL_COMMUNITY_KEYS.has(normalizeCommunityKey(value));
+  }
+
+  function getCommunityMeta(value) {
+    return COMMUNITY_META.get(normalizeCommunityKey(value)) || null;
+  }
+
+  function communityIdPrefix(value) {
+    const letters = normalizeCommunityKey(value);
+    return (letters || "ART").slice(0, 3);
+  }
+
+  function makeEmptyFormData() {
+    return {
+      name: "",
+      phone: "",
+      nin: "",
+      email: "",
+      stateName: "Yobe",
+      entryLga: "",
+      community: "",
+      communityVariant: "default",
+      communityLga: "",
+      district: "",
+      postalCode: "",
+      address: "",
+      mineralSearchQuery: "",
+      lgas: [LGAs[0]],
+      minerals: ["Gypsum"],
+      lga: LGAs[0],
+      mineral: "Gypsum",
+      photoURL: null,
+      cardType: "GLC",
+      holderType: "Individual",
+      crewBossName: "",
+      age: "",
+      sex: "",
+      maritalStatus: "",
+      spouseName: "",
+      childrenInfo: "",
+      monthlyIncome: "",
+      religion: "",
+      skillsTraining: "",
+      yearsInMining: "",
+      miningExperience: "",
+      sellingGoldTo: "",
+      equipmentOwned: "",
+      equipmentNeeded: "",
+      reasonForMining: "",
+      assetHouse: "",
+      assetCar: "",
+      assetMotorbike: "",
+      assetOther: "",
+      assetKitchen: "",
+      assetFurniture: "",
+      assetGardeningTools: "",
+      assetOtherDetails: "",
+      assistance1: "",
+      assistance2: "",
+      assistance3: "",
+      assistance4: "",
+      assistance5: "",
+      assistance6: "",
+    };
+  }
 
   const iso = (d) => new Date(d).toISOString().split("T")[0];
   const now = () => new Date();
@@ -535,21 +805,7 @@
 
     timeString: new Date().toLocaleTimeString(),
 
-    formData: {
-      name: "",
-      phone: "",
-      nin: "",
-      stateName: "Yobe",
-      address: "",
-      mineralSearchQuery: "",
-      lgas: [LGAs[0]],
-      specialCommunities: [],
-      minerals: ["Gypsum"],
-      lga: LGAs[0],
-      specialCommunity: "",
-      mineral: "Gypsum",
-      photoURL: null,
-    },
+    formData: makeEmptyFormData(),
 
     generatedId: "",
     expiryDate: "",
@@ -935,7 +1191,16 @@
   }
 
   function parseRecordLgas(rec) {
-    const fromList = pickFirst(rec, ["lgaList", "LgaList", "lgas", "LGAs", "locations", "Locations"]);
+    const fromList = pickFirst(rec, [
+      "lgaList",
+      "LgaList",
+      "lgas",
+      "LGAs",
+      "locations",
+      "Locations",
+      "communityLga",
+      "CommunityLga",
+    ]);
     const parsed = normalizeSelection(fromList, null).filter((l) => LGAs.includes(l));
     if (parsed.length) return parsed.slice(0, 3);
     const one = pickFirst(rec, ["location", "Location", "lga", "LGA"]) || LGAs[0];
@@ -955,42 +1220,6 @@
     if (parsed.length) return parsed.slice(0, 3);
     const one = pickFirst(rec, ["mineral", "Mineral"]) || "Gypsum";
     return [String(one)];
-  }
-
-  function parseRecordSpecialCommunities(rec) {
-    const fromList = pickFirst(rec, [
-      "specialCommunityList",
-      "SpecialCommunityList",
-      "specialCommunities",
-      "SpecialCommunities",
-      "communities",
-      "Communities",
-    ]);
-    const parsed = normalizeSelection(fromList, null).filter(
-      (community) => !!SPECIAL_COMMUNITY_TO_LGA[String(community)]
-    );
-    if (parsed.length) return parsed;
-    const one = pickFirst(rec, ["specialCommunity", "SpecialCommunity", "community", "Community"]);
-    if (one && SPECIAL_COMMUNITY_TO_LGA[String(one)]) return [String(one)];
-    return [];
-  }
-
-  function getAvailableSpecialCommunities(lgas) {
-    const selectedLgas = normalizeSelection(lgas, null);
-    const out = [];
-    selectedLgas.forEach((lga) => {
-      (SPECIAL_COMMUNITIES_BY_LGA[lga] || []).forEach((community) => {
-        if (!out.includes(community)) out.push(community);
-      });
-    });
-    return out;
-  }
-
-  function syncSpecialCommunitiesWithLgas(lgas, selectedCommunities) {
-    const allowed = new Set(getAvailableSpecialCommunities(lgas));
-    return normalizeSelection(selectedCommunities, null).filter((community) =>
-      allowed.has(community)
-    );
   }
 
   function hasLga(record, lga) {
@@ -1178,10 +1407,6 @@
             .filter((d) => d && isLikelyArtisanRecord(d))
             .map((d, rowIndex) => {
             const lgas = parseRecordLgas(d);
-            const specialCommunities = syncSpecialCommunitiesWithLgas(
-              lgas,
-              parseRecordSpecialCommunities(d)
-            );
             const minerals = parseRecordMinerals(d);
             return {
               ...d,
@@ -1193,11 +1418,8 @@
               stateName: normalizeStateName(d.stateName || d.state || d.State || "Yobe"),
               address: d.address || d.Address || "",
               lgas,
-              specialCommunities,
               minerals,
               lgaList: lgas.join(", "),
-              specialCommunity: specialCommunities[0] || "",
-              specialCommunityList: specialCommunities.join(", "),
               mineralList: minerals.join(", "),
               location: d.location || d.lga || d.LGA || lgas.join(", ") || "—",
               mineral: d.mineral || d.Mineral || minerals.join(", ") || "—",
@@ -1546,40 +1768,124 @@
   // =========================
   function enforceArtisanOnly(id) {
     const cleaned = String(id || "").trim().toUpperCase();
-    return cleaned.startsWith("ART-");
+    return /^[A-Z]{3}-\d{6}$/.test(cleaned);
   }
 
   function extractArtisanId(raw) {
     const s = String(raw || "").trim();
     if (!s) return "";
-    if (/^ART-\d{6}$/i.test(s)) return s.toUpperCase();
-    const m = s.match(/ART-\d{6}/i);
+    if (/^[A-Z]{3}-\d{6}$/i.test(s)) return s.toUpperCase();
+    const m = s.match(/[A-Z]{3}-\d{6}/i);
     if (m && m[0]) return m[0].toUpperCase();
-    const m2 = s.match(/ID:\s*(ART-\d{6})/i);
+    const m2 = s.match(/ID:\s*([A-Z]{3}-\d{6})/i);
     if (m2 && m2[1]) return m2[1].toUpperCase();
     return "";
   }
 
   function resetForm() {
-    state.formData = {
-      name: "",
-      phone: "",
-      nin: "",
-      stateName: "Yobe",
-      address: "",
-      mineralSearchQuery: "",
-      lgas: [LGAs[0]],
-      specialCommunities: [],
-      minerals: ["Gypsum"],
-      lga: LGAs[0],
-      specialCommunity: "",
-      mineral: "Gypsum",
-      photoURL: null,
-    };
+    state.formData = makeEmptyFormData();
     state.capturedPhoto = null;
     state.cameraError = null;
     state.error = null;
     state.editingId = null;
+  }
+
+  function applyCommunitySelection(value, preserveSelectedLgas) {
+    const selected = String(value || "").trim();
+    const meta = getCommunityMeta(selected);
+    state.formData.community = selected;
+    state.formData.communityVariant = isSpecialCommunitySelection(selected) ? "glc" : "default";
+    if (meta?.lga) state.formData.entryLga = meta.lga;
+    state.formData.communityLga = meta?.lga || "";
+    state.formData.district = meta?.district || "";
+    state.formData.postalCode = meta?.postalCode || "";
+
+    if (!preserveSelectedLgas && meta?.lga) {
+      state.formData.lgas = [meta.lga];
+      state.formData.lga = meta.lga;
+    } else if (
+      preserveSelectedLgas &&
+      !normalizeSelection(state.formData.lgas, null).length &&
+      meta?.lga
+    ) {
+      state.formData.lgas = [meta.lga];
+      state.formData.lga = meta.lga;
+    }
+  }
+
+  function hydrateFormFromRecord(record) {
+    resetForm();
+    const rec = record || {};
+    const community =
+      pickFirst(rec, ["community", "Community", "village", "Village"]) || "";
+    const entryLga =
+      pickFirst(rec, ["communityLga", "CommunityLga", "lga", "LGA", "location", "Location"]) || "";
+
+    state.formData.entryLga = String(entryLga || "").split(",")[0].trim();
+
+    if (community) applyCommunitySelection(community, true);
+
+    state.formData.name =
+      pickFirst(rec, ["name", "Name", "fullName", "Full_Name", "Full Name"]) || "";
+    state.formData.stateName = normalizeStateName(
+      pickFirst(rec, ["stateName", "state", "State"]) || "Yobe"
+    );
+    state.formData.address = pickFirst(rec, ["address", "Address"]) || "";
+    state.formData.phone = pickFirst(rec, ["phone", "Phone"]) || "";
+    state.formData.nin = pickFirst(rec, ["nin", "NIN"]) || "";
+    state.formData.email = pickFirst(rec, ["email", "Email"]) || "";
+    state.formData.lgas = parseRecordLgas(rec);
+    state.formData.minerals = parseRecordMinerals(rec);
+    state.formData.mineralSearchQuery = "";
+    state.formData.lga = state.formData.lgas[0] || LGAs[0];
+    state.formData.mineral = state.formData.minerals[0] || "Gypsum";
+    state.formData.photoURL = resolvePhotoFromRecord(rec, ASSETS.miningLogo);
+    state.formData.cardType = pickFirst(rec, ["cardType", "CardType"]) || "GLC";
+    state.formData.holderType = pickFirst(rec, ["holderType", "HolderType"]) || "Individual";
+    state.formData.crewBossName = pickFirst(rec, ["crewBossName", "CrewBossName"]) || "";
+    state.formData.age = pickFirst(rec, ["age", "Age"]) || "";
+    state.formData.sex = pickFirst(rec, ["sex", "Sex"]) || "";
+    state.formData.maritalStatus =
+      pickFirst(rec, ["maritalStatus", "MaritalStatus", "married", "Married"]) || "";
+    state.formData.spouseName = pickFirst(rec, ["spouseName", "SpouseName"]) || "";
+    state.formData.childrenInfo = pickFirst(rec, ["childrenInfo", "ChildrenInfo"]) || "";
+    state.formData.monthlyIncome = pickFirst(rec, ["monthlyIncome", "MonthlyIncome"]) || "";
+    state.formData.religion = pickFirst(rec, ["religion", "Religion"]) || "";
+    state.formData.skillsTraining =
+      pickFirst(rec, ["skillsTraining", "SkillsTraining"]) || "";
+    state.formData.yearsInMining =
+      pickFirst(rec, ["yearsInMining", "YearsInMining"]) || "";
+    state.formData.miningExperience =
+      pickFirst(rec, ["miningExperience", "MiningExperience"]) || "";
+    state.formData.sellingGoldTo =
+      pickFirst(rec, ["sellingGoldTo", "SellingGoldTo"]) || "";
+    state.formData.equipmentOwned =
+      pickFirst(rec, ["equipmentOwned", "EquipmentOwned"]) || "";
+    state.formData.equipmentNeeded =
+      pickFirst(rec, ["equipmentNeeded", "EquipmentNeeded"]) || "";
+    state.formData.reasonForMining =
+      pickFirst(rec, ["reasonForMining", "ReasonForMining"]) || "";
+    state.formData.assetHouse = pickFirst(rec, ["assetHouse", "AssetHouse"]) || "";
+    state.formData.assetCar = pickFirst(rec, ["assetCar", "AssetCar"]) || "";
+    state.formData.assetMotorbike =
+      pickFirst(rec, ["assetMotorbike", "AssetMotorbike"]) || "";
+    state.formData.assetOther = pickFirst(rec, ["assetOther", "AssetOther"]) || "";
+    state.formData.assetKitchen =
+      pickFirst(rec, ["assetKitchen", "AssetKitchen"]) || "";
+    state.formData.assetFurniture =
+      pickFirst(rec, ["assetFurniture", "AssetFurniture"]) || "";
+    state.formData.assetGardeningTools =
+      pickFirst(rec, ["assetGardeningTools", "AssetGardeningTools"]) || "";
+    state.formData.assetOtherDetails =
+      pickFirst(rec, ["assetOtherDetails", "AssetOtherDetails"]) || "";
+    state.formData.assistance1 = pickFirst(rec, ["assistance1", "Assistance1"]) || "";
+    state.formData.assistance2 = pickFirst(rec, ["assistance2", "Assistance2"]) || "";
+    state.formData.assistance3 = pickFirst(rec, ["assistance3", "Assistance3"]) || "";
+    state.formData.assistance4 = pickFirst(rec, ["assistance4", "Assistance4"]) || "";
+    state.formData.assistance5 = pickFirst(rec, ["assistance5", "Assistance5"]) || "";
+    state.formData.assistance6 = pickFirst(rec, ["assistance6", "Assistance6"]) || "";
+    if (!state.formData.entryLga) state.formData.entryLga = state.formData.lga || "";
+    if (community) applyCommunitySelection(community, true);
   }
 
   window.openRegisterMiner = function () {
@@ -1629,12 +1935,12 @@
     const phoneKey = normalizePhoneKey(input);
 
     if (!input) {
-      msgEl.innerText = "Please enter an Artisan ID or phone number.";
+      msgEl.innerText = "Please enter a Miner ID or phone number.";
       msgEl.className = "text-red-500 text-sm mt-2";
       return;
     }
     if (!idCandidate && !phoneKey) {
-      msgEl.innerText = "Enter ART-XXXXXX or a valid phone number.";
+      msgEl.innerText = "Enter a valid ID like ART-123456 or a phone number.";
       msgEl.className = "text-red-600 text-sm mt-2 font-bold";
       return;
     }
@@ -1664,28 +1970,8 @@
       }
 
       state.searchResult = d;
-
-      state.generatedId =
-        pickFirst(d, ["id", "ID", "Id"]) || idCandidate;
-      state.formData.name =
-        pickFirst(d, ["name", "Name", "fullName", "Full_Name", "Full Name"]) || "";
-      state.formData.lgas = parseRecordLgas(d);
-      state.formData.specialCommunities = syncSpecialCommunitiesWithLgas(
-        state.formData.lgas,
-        parseRecordSpecialCommunities(d)
-      );
-      state.formData.minerals = parseRecordMinerals(d);
-      state.formData.mineralSearchQuery = "";
-      state.formData.lga = state.formData.lgas[0] || LGAs[0];
-      state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
-      state.formData.mineral = state.formData.minerals[0] || "Gypsum";
-      state.formData.stateName = normalizeStateName(
-        pickFirst(d, ["stateName", "state", "State"]) || "Yobe"
-      );
-      state.formData.address = pickFirst(d, ["address", "Address"]) || "";
-      state.formData.phone = pickFirst(d, ["phone", "Phone"]) || "";
-      state.formData.nin = pickFirst(d, ["nin", "NIN"]) || "";
-      state.formData.photoURL = resolvePhotoFromRecord(d, ASSETS.miningLogo);
+      hydrateFormFromRecord(d);
+      state.generatedId = pickFirst(d, ["id", "ID", "Id"]) || idCandidate;
       const expRaw = pickFirst(d, ["expiryDate", "ExpiryDate", "expiry", "Expiry"]);
       state.expiryDate = expRaw ? new Date(expRaw) : addYears(1);
 
@@ -1707,7 +1993,7 @@
       return;
     }
     if (!enforceArtisanOnly(input)) {
-      msgEl.innerText = "Only Artisan IDs (ART-xxxxxx) can be renewed right now.";
+      msgEl.innerText = "Only valid miner IDs like ART-123456 can be renewed right now.";
       msgEl.className = "text-red-600 text-sm mt-2 font-bold";
       return;
     }
@@ -2101,7 +2387,7 @@
       return;
     }
     if (!enforceArtisanOnly(id)) {
-      uiAlert("Exit Log ID must be an Artisan ID (ART-xxxxxx).");
+      uiAlert("Exit Log ID must be a valid miner ID like ART-123456.");
       return;
     }
     if (!unitPrice) {
@@ -2227,23 +2513,8 @@
   window.editApplication = function (id) {
     const a = state.applications.find((x) => x.id === id);
     if (!a) return;
+    hydrateFormFromRecord(a);
     state.editingId = id;
-    state.formData.name = a.name || "";
-    state.formData.stateName = normalizeStateName(a.stateName || a.state || "Yobe");
-    state.formData.address = a.address || "";
-    state.formData.lgas = parseRecordLgas(a);
-    state.formData.specialCommunities = syncSpecialCommunitiesWithLgas(
-      state.formData.lgas,
-      parseRecordSpecialCommunities(a)
-    );
-    state.formData.minerals = parseRecordMinerals(a);
-    state.formData.mineralSearchQuery = "";
-    state.formData.lga = state.formData.lgas[0] || LGAs[0];
-    state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
-    state.formData.mineral = state.formData.minerals[0] || "Gypsum";
-    state.formData.photoURL = normalizePhotoURL(a.photoURL || null);
-    state.formData.phone = a.phone || "";
-    state.formData.nin = pickFirst(a, ["nin", "NIN"]) || "";
     window.setView("artisan-form");
   };
 
@@ -2299,23 +2570,6 @@
     }
     state.formData.lgas = toggleChoice(state.formData.lgas, lga, 3);
     state.formData.lga = state.formData.lgas[0] || "";
-    state.formData.specialCommunities = syncSpecialCommunitiesWithLgas(
-      state.formData.lgas,
-      state.formData.specialCommunities
-    );
-    state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
-    render();
-  };
-
-  window.toggleSpecialCommunitySelection = function (community) {
-    const available = getAvailableSpecialCommunities(state.formData.lgas);
-    if (!available.includes(community)) return;
-    state.formData.specialCommunities = toggleChoice(
-      state.formData.specialCommunities,
-      community,
-      available.length || 1
-    );
-    state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
     render();
   };
 
@@ -2324,8 +2578,40 @@
     render();
   };
 
+  window.handleCommunityChange = function (value) {
+    applyCommunitySelection(value, false);
+    if (isSpecialCommunitySelection(value)) {
+      state.formData.minerals = ["Gold"];
+      state.formData.mineral = "Gold";
+      if (!state.formData.sex) state.formData.sex = "Male";
+    }
+    state.error = null;
+    render();
+  };
+
+  window.handleEntryLgaChange = function (value) {
+    const lga = String(value || "").trim();
+    state.formData.entryLga = lga;
+    state.formData.community = "";
+    state.formData.communityVariant = SPECIAL_LGAS.includes(lga) ? "" : "default";
+    state.formData.communityLga = lga;
+    state.formData.district = "";
+    state.formData.postalCode = "";
+    state.formData.lgas = lga ? [lga] : [LGAs[0]];
+    state.formData.lga = lga || LGAs[0];
+    if (!SPECIAL_LGAS.includes(lga)) {
+      state.formData.minerals = state.formData.minerals.length ? state.formData.minerals : ["Gypsum"];
+      state.formData.mineral = state.formData.minerals[0] || "Gypsum";
+    }
+    state.error = null;
+    render();
+  };
+
   function validateArtisanForm() {
     const errors = [];
+    const entryLga = String(state.formData.entryLga || "").trim();
+    const community = String(state.formData.community || "").trim();
+    const isSpecial = isSpecialCommunitySelection(community);
     const name = String(state.formData.name || "").trim();
     const phone = String(state.formData.phone || "");
     const cleanPhone = phone.replace(/[^0-9]/g, "");
@@ -2336,14 +2622,29 @@
     const lgas = normalizeSelection(state.formData.lgas, null);
     const minerals = normalizeSelection(state.formData.minerals, null);
 
+    if (!entryLga) errors.push("Select an LGA first.");
+    if (SPECIAL_LGAS.includes(entryLga) && !community) errors.push("Select a community first.");
     if (!cleanPhone && !cleanNin) errors.push(t("phoneOrNinRequired"));
     if (cleanPhone && cleanPhone.length !== 11) errors.push(t("phoneError"));
     if (cleanNin && cleanNin.length !== 11) errors.push(t("ninError"));
     if (!name) errors.push(t("required"));
     if (!stateName) errors.push(t("stateError"));
     if (!address) errors.push(t("addressError"));
-    if (!lgas.length || lgas.length > 3) errors.push(t("lgaSelectionError"));
-    if (!minerals.length || minerals.length > 3) errors.push(t("mineralSelectionError"));
+    if (isSpecial) {
+      if (!String(state.formData.age || "").trim()) errors.push("Age is required.");
+      if (!String(state.formData.sex || "").trim()) errors.push("Sex is required.");
+      if (!String(state.formData.cardType || "").trim()) errors.push("Card type is required.");
+      if (!String(state.formData.holderType || "").trim()) errors.push("Holder category is required.");
+      if (
+        String(state.formData.holderType || "").trim() === "Crew Worker" &&
+        !String(state.formData.crewBossName || "").trim()
+      ) {
+        errors.push("Crew boss name is required for crew workers.");
+      }
+    } else {
+      if (!lgas.length || lgas.length > 3) errors.push(t("lgaSelectionError"));
+      if (!minerals.length || minerals.length > 3) errors.push(t("mineralSelectionError"));
+    }
     if (!state.formData.photoURL) errors.push("Passport photo is required.");
     return errors;
   }
@@ -2359,7 +2660,78 @@
     state.isLoading = true;
     render();
 
-    const duplicatePhone = await isPhoneAlreadyRegistered(state.formData.phone, state.editingId);
+    const entryLga = String(state.formData.entryLga || "").trim();
+    const community = String(state.formData.community || "").trim();
+    const isSpecial = SPECIAL_LGAS.includes(entryLga);
+    const communityMeta = getCommunityMeta(community);
+    const lgas = isSpecial
+      ? normalizeSelection(
+          communityMeta?.lga || state.formData.communityLga || entryLga || state.formData.lgas,
+          null
+        ).slice(0, 1)
+      : normalizeSelection(state.formData.lgas, entryLga || LGAs[0]).slice(0, 3);
+    const minerals = isSpecial
+      ? normalizeSelection(state.formData.minerals, "Gold").slice(0, 3)
+      : normalizeSelection(state.formData.minerals, "Gypsum").slice(0, 3);
+    const locationLabel = isSpecial
+      ? [community, lgas[0]].filter(Boolean).join(", ")
+      : lgas.join(", ");
+    const formPayload = {
+      type: "Artisan",
+      formVariant: isSpecial ? "glc" : "default",
+      community: isSpecial ? community : "",
+      communityLga: communityMeta?.lga || state.formData.communityLga || entryLga || "",
+      district: communityMeta?.district || state.formData.district || "",
+      postalCode: communityMeta?.postalCode || state.formData.postalCode || "",
+      name: state.formData.name,
+      phone: state.formData.phone,
+      nin: state.formData.nin,
+      email: state.formData.email,
+      stateName: state.formData.stateName,
+      state: state.formData.stateName,
+      address: state.formData.address,
+      lga: lgas[0] || "",
+      lgas,
+      lgaList: lgas.join(", "),
+      location: locationLabel,
+      mineral: minerals.join(", "),
+      minerals,
+      mineralList: minerals.join(", "),
+      photoURL: normalizePhotoURL(state.formData.photoURL),
+      cardType: isSpecial ? state.formData.cardType : "",
+      holderType: isSpecial ? state.formData.holderType : "",
+      crewBossName: isSpecial ? state.formData.crewBossName : "",
+      age: isSpecial ? state.formData.age : "",
+      sex: isSpecial ? state.formData.sex : "",
+      maritalStatus: isSpecial ? state.formData.maritalStatus : "",
+      spouseName: isSpecial ? state.formData.spouseName : "",
+      childrenInfo: isSpecial ? state.formData.childrenInfo : "",
+      monthlyIncome: isSpecial ? state.formData.monthlyIncome : "",
+      religion: isSpecial ? state.formData.religion : "",
+      skillsTraining: isSpecial ? state.formData.skillsTraining : "",
+      yearsInMining: isSpecial ? state.formData.yearsInMining : "",
+      miningExperience: isSpecial ? state.formData.miningExperience : "",
+      sellingGoldTo: isSpecial ? state.formData.sellingGoldTo : "",
+      equipmentOwned: isSpecial ? state.formData.equipmentOwned : "",
+      equipmentNeeded: isSpecial ? state.formData.equipmentNeeded : "",
+      reasonForMining: isSpecial ? state.formData.reasonForMining : "",
+      assetHouse: isSpecial ? state.formData.assetHouse : "",
+      assetCar: isSpecial ? state.formData.assetCar : "",
+      assetMotorbike: isSpecial ? state.formData.assetMotorbike : "",
+      assetOther: isSpecial ? state.formData.assetOther : "",
+      assetKitchen: isSpecial ? state.formData.assetKitchen : "",
+      assetFurniture: isSpecial ? state.formData.assetFurniture : "",
+      assetGardeningTools: isSpecial ? state.formData.assetGardeningTools : "",
+      assetOtherDetails: isSpecial ? state.formData.assetOtherDetails : "",
+      assistance1: isSpecial ? state.formData.assistance1 : "",
+      assistance2: isSpecial ? state.formData.assistance2 : "",
+      assistance3: isSpecial ? state.formData.assistance3 : "",
+      assistance4: isSpecial ? state.formData.assistance4 : "",
+      assistance5: isSpecial ? state.formData.assistance5 : "",
+      assistance6: isSpecial ? state.formData.assistance6 : "",
+    };
+
+    const duplicatePhone = await isPhoneAlreadyRegistered(formPayload.phone, state.editingId);
     if (duplicatePhone) {
       state.isLoading = false;
       state.error =
@@ -2372,31 +2744,9 @@
       const idx = state.applications.findIndex((a) => a.id === state.editingId);
       if (idx !== -1) {
         const original = state.applications[idx];
-        const lgas = normalizeSelection(state.formData.lgas, LGAs[0]).slice(0, 3);
-        const specialCommunities = syncSpecialCommunitiesWithLgas(
-          lgas,
-          state.formData.specialCommunities
-        );
-        const minerals = normalizeSelection(state.formData.minerals, "Gypsum").slice(0, 3);
         const updatedApp = {
           ...original,
-          type: "Artisan",
-          name: state.formData.name,
-          stateName: state.formData.stateName,
-          address: state.formData.address,
-          lga: lgas[0],
-          lgas,
-          lgaList: lgas.join(", "),
-          specialCommunity: specialCommunities[0] || "",
-          specialCommunities,
-          specialCommunityList: specialCommunities.join(", "),
-          location: lgas.join(", "),
-          mineral: minerals.join(", "),
-          minerals,
-          mineralList: minerals.join(", "),
-          photoURL: normalizePhotoURL(state.formData.photoURL),
-          phone: state.formData.phone,
-          nin: state.formData.nin,
+          ...formPayload,
           updatedAt: new Date().toISOString(),
         };
         state.applications[idx] = updatedApp;
@@ -2426,43 +2776,20 @@
       return;
     }
 
-    state.generatedId = "ART-" + Math.floor(100000 + Math.random() * 900000);
+    const prefix = isSpecial ? communityIdPrefix(community) : "ART";
+    state.generatedId = prefix + "-" + Math.floor(100000 + Math.random() * 900000);
     state.issueDate = new Date();
     state.expiryDate = addYears(1);
 
     const createdAtISO = new Date().toISOString();
 
-    const lgas = normalizeSelection(state.formData.lgas, LGAs[0]).slice(0, 3);
-    const specialCommunities = syncSpecialCommunitiesWithLgas(
-      lgas,
-      state.formData.specialCommunities
-    );
-    const minerals = normalizeSelection(state.formData.minerals, "Gypsum").slice(0, 3);
-
     const backendData = {
       id: state.generatedId,
-      type: "Artisan",
+      ...formPayload,
       status: "Pending",
       paymentStatus: "Unpaid",
       paidAmount: 0,
       fee: 20000,
-      name: state.formData.name,
-      phone: state.formData.phone,
-      nin: state.formData.nin,
-      stateName: state.formData.stateName,
-      state: state.formData.stateName,
-      address: state.formData.address,
-      lga: lgas[0],
-      lgas,
-      lgaList: lgas.join(", "),
-      specialCommunity: specialCommunities[0] || "",
-      specialCommunities,
-      specialCommunityList: specialCommunities.join(", "),
-      location: lgas.join(", "),
-      mineral: minerals.join(", "),
-      minerals,
-      mineralList: minerals.join(", "),
-      photoURL: normalizePhotoURL(state.formData.photoURL),
       issueDate: iso(state.issueDate),
       expiryDate: iso(state.expiryDate),
       createdAt: createdAtISO,
@@ -2861,6 +3188,27 @@
     );
   }
 
+  function renderTextarea(label, id, placeholder, value, oninput, rows) {
+    return (
+      '<div class="mb-4">' +
+      '<label class="block text-sm font-medium text-gray-700 mb-1">' +
+      label +
+      "</label>" +
+      '<textarea id="' +
+      id +
+      '" rows="' +
+      String(rows || 3) +
+      '" placeholder="' +
+      placeholder +
+      '" oninput="' +
+      (oninput || "") +
+      '" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all">' +
+      escHtml(value || "") +
+      "</textarea>" +
+      "</div>"
+    );
+  }
+
   function renderSelect(label, id, options, selectedValue, onchange) {
     const opts = (options || [])
       .map((opt) => {
@@ -2920,54 +3268,6 @@
       '<div class="mt-1 text-xs text-gray-500">' +
       (helperText || "") +
       "</div>" +
-      "</div>"
-    );
-  }
-
-  function renderSpecialCommunityReference() {
-    const rows = Object.entries(SPECIAL_COMMUNITIES_BY_LGA).map(([lga, communities]) => {
-      return (
-        '<div><span class="font-semibold text-gray-700">' +
-        lga +
-        ' LGA:</span> ' +
-        communities.join(", ") +
-        "</div>"
-      );
-    });
-
-    return (
-      '<div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">' +
-      '<div class="font-semibold">Special communities (' +
-      SPECIAL_COMMUNITY_NAMES.length +
-      ")</div>" +
-      rows.join("") +
-      "</div>"
-    );
-  }
-
-  function renderSpecialCommunityForm() {
-    const available = getAvailableSpecialCommunities(state.formData.lgas);
-    if (!available.length) {
-      return (
-        '<div class="mb-4">' +
-        renderSpecialCommunityReference() +
-        '<div class="mt-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-xs text-gray-500">' +
-        "Select Gulani or Gujba to choose special communities." +
-        "</div>" +
-        "</div>"
-      );
-    }
-
-    return (
-      '<div class="mb-4">' +
-      renderMultiChoice(
-        "Special Communities",
-        available,
-        state.formData.specialCommunities,
-        "toggleSpecialCommunitySelection",
-        "Select the applicable special communities for this miner."
-      ) +
-      renderSpecialCommunityReference() +
       "</div>"
     );
   }
@@ -3189,7 +3489,7 @@
       '<div class="flex gap-2">' +
       '<input type="text" id="exit-id" value="' +
       String(state.exitForm?.id || "") +
-      '" oninput="state.exitForm.id = this.value" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all" placeholder="ART-XXXXXX">' +
+      '" oninput="state.exitForm.id = this.value" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all" placeholder="ART-123456">' +
       '<button onclick="openQRScanner(\'exitLog\')" class="bg-blue-600 text-white px-4 rounded-xl hover:bg-blue-700 flex items-center justify-center">' +
       Icon("scan", "w-5 h-5") +
       "</button>" +
@@ -3502,29 +3802,60 @@
   function renderArtisanForm() {
     const backTarget =
       state.currentUserRole === "staff" ? "setView('admin-dashboard')" : "setView('miner-portal')";
-    return (
-      '<div class="max-w-xl w-full mx-auto px-4 py-8 animate-slide-in-right">' +
-      '<button onclick="' +
-      backTarget +
-      '" class="text-gray-500 mb-4 flex items-center hover:text-gray-900 transition">' +
-      Icon("arrow-left", "w-5 h-5 mr-1") +
-      (state.editingId ? " Cancel Edit" : " " + t("back")) +
-      "</button>" +
-      '<div class="bg-white rounded-2xl shadow-xl overflow-hidden">' +
-      '<div class="bg-yellow-500 p-4 text-emerald-900">' +
-      '<h2 class="text-xl font-bold flex items-center gap-2">' +
-      Icon("pickaxe", "w-5 h-5") +
+    const entryLga = String(state.formData.entryLga || "").trim();
+    const community = String(state.formData.community || "").trim();
+    const isSpecial = isSpecialCommunitySelection(community);
+    const lgaOptions = LGAs.map((lga) => {
+      const selected = lga === entryLga ? " selected" : "";
+      const specialLabel = SPECIAL_LGAS.includes(lga) ? " (has special communities)" : "";
+      return `<option value="${escHtml(lga)}"${selected}>${escHtml(lga + specialLabel)}</option>`;
+    }).join("");
+    const lgaCommunityOptions = getSpecialCommunitiesByLga(entryLga).map((item) => {
+      const selected = item.community === community ? " selected" : "";
+      const meta = [item.lga, item.postalCode].filter(Boolean).join(" • ");
+      const label = meta ? `${item.community} (${meta})` : item.community;
+      return `<option value="${escHtml(item.community)}"${selected}>${escHtml(label)}</option>`;
+    }).join("");
+    const communityMeta = getCommunityMeta(community);
+    const communitySummary = community
+      ? `<div class="mb-5 rounded-2xl border ${isSpecial ? "border-yellow-300 bg-yellow-50" : "border-emerald-100 bg-emerald-50"} p-4">
+          <div class="text-xs font-black uppercase tracking-[0.2em] ${isSpecial ? "text-yellow-800" : "text-emerald-800"}">${isSpecial ? "GLC Community" : "Standard Community"}</div>
+          <div class="mt-2 text-sm text-gray-700">${escHtml(community)}${communityMeta?.lga ? ` • ${escHtml(communityMeta.lga)}` : ""}${communityMeta?.postalCode ? ` • Postal ${escHtml(communityMeta.postalCode)}` : ""}</div>
+          <div class="mt-1 text-xs text-gray-500">${isSpecial ? `ID numbers for this community will start with ${communityIdPrefix(community)}-.` : "The regular miner registration form will be used for this community."}</div>
+        </div>`
+      : entryLga && !SPECIAL_LGAS.includes(entryLga)
+        ? `<div class="mb-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+            <div class="text-xs font-black uppercase tracking-[0.2em] text-emerald-800">Standard LGA</div>
+            <div class="mt-2 text-sm text-gray-700">${escHtml(entryLga)}</div>
+            <div class="mt-1 text-xs text-gray-500">This LGA uses the regular miner registration form.</div>
+          </div>`
+      : "";
+    const photoBlock =
+      '<div class="mb-6">' +
+      '<label class="block text-sm font-medium text-gray-700 mb-2">' +
+      t("formPhoto") +
+      "</label>" +
+      '<div class="grid grid-cols-2 gap-3">' +
+      '<button type="button" onclick="openCamera()" class="py-3 rounded-xl bg-gray-900 text-white font-bold hover:bg-black flex items-center justify-center gap-2">' +
+      Icon("camera", "w-5 h-5") +
       " " +
-      (state.editingId ? "Edit Miner Record" : "Register Miner") +
-      "</h2>" +
-      '<div class="text-[11px] font-bold opacity-80 mt-1">GPS will be captured automatically on submission.</div>' +
+      t("snapPhoto") +
+      "</button>" +
+      '<label class="py-3 rounded-xl border border-gray-300 font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer">' +
+      Icon("upload", "w-5 h-5") +
+      " " +
+      t("uploadPhoto") +
+      '<input type="file" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">' +
+      "</label>" +
       "</div>" +
-      '<div class="p-6">' +
-      (state.error
-        ? '<div class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4 border border-red-100">' +
-          state.error +
-          "</div>"
-        : "") +
+      (state.formData.photoURL
+        ? '<div class="mt-4 flex items-center gap-3"><img src="' +
+          state.formData.photoURL +
+          '" class="w-14 h-14 rounded-full object-cover border-2 border-yellow-500 shadow-sm" onerror="this.onerror=null;this.src=\'./assets/icon.svg\'"><div class="text-xs text-gray-500">Photo saved.</div></div>'
+        : '<div class="mt-3 text-xs text-gray-400">No photo selected yet.</div>') +
+      "</div>";
+
+    const standardFields =
       renderInput(t("formName"), "inp-name", "text", "Musa Ibrahim", state.formData.name, "state.formData.name = this.value", null) +
       renderInput(
         t("formPhone"),
@@ -3566,7 +3897,6 @@
         "toggleLgaSelection",
         "Select up to 3 LGAs if you operate in multiple locations."
       ) +
-      renderSpecialCommunityForm() +
       renderSearchableMultiChoice(
         t("formMineral"),
         MINERAL_NAMES,
@@ -3575,40 +3905,249 @@
         "Select up to 3 mineral types.",
         state.formData.mineralSearchQuery,
         "setMineralSearchQuery"
+      );
+
+    const specialFields =
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      renderInput("Name", "glc-name", "text", "Musa Ibrahim", state.formData.name, "state.formData.name = this.value") +
+      renderInput("Age", "glc-age", "number", "35", state.formData.age, "this.value = this.value.replace(/[^0-9]/g,''); state.formData.age = this.value") +
+      "</div>" +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      renderSelect("Card Type", "glc-card-type", ["GLC", "GLCW"], state.formData.cardType, "state.formData.cardType = this.value") +
+      renderSelect(
+        "Holder Category",
+        "glc-holder-type",
+        ["EL Holder", "ML Holder", "Group Boss", "Individual", "Crew Worker"],
+        state.formData.holderType,
+        "state.formData.holderType = this.value"
       ) +
-      '<div class="mb-6">' +
-      '<label class="block text-sm font-medium text-gray-700 mb-2">' +
-      t("formPhoto") +
-      "</label>" +
-      '<div class="grid grid-cols-2 gap-3">' +
-      '<button type="button" onclick="openCamera()" class="py-3 rounded-xl bg-gray-900 text-white font-bold hover:bg-black flex items-center justify-center gap-2">' +
-      Icon("camera", "w-5 h-5") +
-      " " +
-      t("snapPhoto") +
+      "</div>" +
+      (state.formData.holderType === "Crew Worker"
+        ? renderInput(
+            "Who is Crew Boss?",
+            "glc-crew-boss",
+            "text",
+            "Crew boss name",
+            state.formData.crewBossName,
+            "state.formData.crewBossName = this.value"
+          )
+        : "") +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      renderSelect("Sex", "glc-sex", ["Male", "Female"], state.formData.sex || "Male", "state.formData.sex = this.value") +
+      renderSelect(
+        "Married",
+        "glc-married",
+        ["", "Yes", "No"],
+        state.formData.maritalStatus,
+        "state.formData.maritalStatus = this.value"
+      ) +
+      "</div>" +
+      renderInput(
+        "Wife(s) Name",
+        "glc-spouse",
+        "text",
+        "Optional",
+        state.formData.spouseName,
+        "state.formData.spouseName = this.value"
+      ) +
+      renderTextarea(
+        "Children & Ages",
+        "glc-children",
+        "List child names, ages, and school information",
+        state.formData.childrenInfo,
+        "state.formData.childrenInfo = this.value",
+        4
+      ) +
+      renderTextarea(
+        "Address / Village / LGA",
+        "glc-address",
+        "Enter village, settlement, and any nearby landmark",
+        state.formData.address,
+        "state.formData.address = this.value",
+        3
+      ) +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      renderSelect(
+        t("formState"),
+        "glc-state",
+        STATES,
+        normalizeStateName(state.formData.stateName),
+        "state.formData.stateName = this.value"
+      ) +
+      renderInput(
+        "Phone Number",
+        "glc-phone",
+        "tel",
+        "08012345678",
+        state.formData.phone,
+        "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 11); state.formData.phone = this.value",
+        11
+      ) +
+      "</div>" +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      renderInput(
+        "Email",
+        "glc-email",
+        "email",
+        "miner@example.com",
+        state.formData.email,
+        "state.formData.email = this.value"
+      ) +
+      renderInput(
+        "NIN",
+        "glc-nin",
+        "text",
+        "12345678901",
+        state.formData.nin,
+        "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 11); state.formData.nin = this.value",
+        11
+      ) +
+      "</div>" +
+      renderInput(
+        "Years in Mining",
+        "glc-years",
+        "number",
+        "10",
+        state.formData.yearsInMining,
+        "this.value = this.value.replace(/[^0-9]/g,'').slice(0, 2); if (this.value && Number(this.value) > 99) this.value = '99'; state.formData.yearsInMining = this.value",
+        2
+      ) +
+      renderTextarea(
+        "Mining Experience",
+        "glc-exp",
+        "Where do you mine and what rough production level do you reach?",
+        state.formData.miningExperience,
+        "state.formData.miningExperience = this.value",
+        4
+      ) +
+      renderInput(
+        "Monthly Income (Non Gold)",
+        "glc-income",
+        "number",
+        "0",
+        state.formData.monthlyIncome,
+        "this.value = this.value.replace(/[^0-9]/g,''); state.formData.monthlyIncome = this.value"
+      ) +
+      renderSelect(
+        "Religion",
+        "glc-religion",
+        ["", "Christian", "Muslim"],
+        state.formData.religion,
+        "state.formData.religion = this.value"
+      ) +
+      renderTextarea(
+        "Skills / Trades / Training",
+        "glc-skills",
+        "List any trades, skills, or training completed",
+        state.formData.skillsTraining,
+        "state.formData.skillsTraining = this.value",
+        3
+      ) +
+      renderTextarea(
+        "Selling Gold To?",
+        "glc-selling",
+        "Who do you usually sell gold to?",
+        state.formData.sellingGoldTo,
+        "state.formData.sellingGoldTo = this.value",
+        3
+      ) +
+      renderTextarea(
+        "Mining Equipment Owned",
+        "glc-owned",
+        "List equipment already owned",
+        state.formData.equipmentOwned,
+        "state.formData.equipmentOwned = this.value",
+        3
+      ) +
+      renderTextarea(
+        "What Equipment Is Needed?",
+        "glc-needed",
+        "List tools or equipment needed",
+        state.formData.equipmentNeeded,
+        "state.formData.equipmentNeeded = this.value",
+        3
+      ) +
+      '<div class="rounded-2xl border border-gray-200 p-4 mb-4">' +
+      '<div class="text-sm font-bold text-gray-800 mb-3">Current Assets</div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      renderInput("House (type)", "asset-house", "text", "Optional", state.formData.assetHouse, "state.formData.assetHouse = this.value") +
+      renderInput("Car (type)", "asset-car", "text", "Optional", state.formData.assetCar, "state.formData.assetCar = this.value") +
+      renderInput("Motorbike (type)", "asset-bike", "text", "Optional", state.formData.assetMotorbike, "state.formData.assetMotorbike = this.value") +
+      renderInput("Other (bicycle etc)", "asset-other", "text", "Optional", state.formData.assetOther, "state.formData.assetOther = this.value") +
+      renderInput("Kitchen", "asset-kitchen", "text", "Optional", state.formData.assetKitchen, "state.formData.assetKitchen = this.value") +
+      renderInput("Furniture", "asset-furniture", "text", "Optional", state.formData.assetFurniture, "state.formData.assetFurniture = this.value") +
+      renderInput("Gardening Tools", "asset-garden", "text", "Optional", state.formData.assetGardeningTools, "state.formData.assetGardeningTools = this.value") +
+      renderInput("Other", "asset-other-details", "text", "Optional", state.formData.assetOtherDetails, "state.formData.assetOtherDetails = this.value") +
+      "</div></div>" +
+      renderTextarea(
+        "Why do you want to be in mining?",
+        "glc-reason",
+        "Tell us why you want to stay or grow in mining",
+        state.formData.reasonForMining,
+        "state.formData.reasonForMining = this.value",
+        4
+      ) +
+      '<div class="rounded-2xl border border-gray-200 p-4 mb-4">' +
+      '<div class="text-sm font-bold text-gray-800 mb-3">Assistance Provided to Miner</div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      renderInput("1", "assist-1", "text", "Optional", state.formData.assistance1, "state.formData.assistance1 = this.value") +
+      renderInput("2", "assist-2", "text", "Optional", state.formData.assistance2, "state.formData.assistance2 = this.value") +
+      renderInput("3", "assist-3", "text", "Optional", state.formData.assistance3, "state.formData.assistance3 = this.value") +
+      renderInput("4", "assist-4", "text", "Optional", state.formData.assistance4, "state.formData.assistance4 = this.value") +
+      renderInput("5", "assist-5", "text", "Optional", state.formData.assistance5, "state.formData.assistance5 = this.value") +
+      renderInput("6", "assist-6", "text", "Optional", state.formData.assistance6, "state.formData.assistance6 = this.value") +
+      "</div></div>";
+
+    return (
+      '<div class="max-w-4xl w-full mx-auto px-4 py-8 animate-slide-in-right">' +
+      '<button onclick="' +
+      backTarget +
+      '" class="text-gray-500 mb-4 flex items-center hover:text-gray-900 transition">' +
+      Icon("arrow-left", "w-5 h-5 mr-1") +
+      (state.editingId ? " Cancel Edit" : " " + t("back")) +
       "</button>" +
-      '<label class="py-3 rounded-xl border border-gray-300 font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer">' +
-      Icon("upload", "w-5 h-5") +
+      '<div class="bg-white rounded-2xl shadow-xl overflow-hidden">' +
+      '<div class="bg-yellow-500 p-4 text-emerald-900">' +
+      '<h2 class="text-xl font-bold flex items-center gap-2">' +
+      Icon("pickaxe", "w-5 h-5") +
       " " +
-      t("uploadPhoto") +
-      '<input type="file" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">' +
-      "</label>" +
+      (state.editingId ? "Edit Miner Record" : "Register Miner") +
+      "</h2>" +
+      '<div class="text-[11px] font-bold opacity-80 mt-1">Select LGA first. GPS will be captured automatically on submission.</div>' +
       "</div>" +
-      (state.formData.photoURL
-        ? '<div class="mt-4 flex items-center gap-3">' +
-          '<img src="' +
-          state.formData.photoURL +
-          '" class="w-14 h-14 rounded-full object-cover border-2 border-yellow-500 shadow-sm" onerror="this.onerror=null;this.src=\'./assets/icon.svg\'">' +
-          '<div class="text-xs text-gray-500">Photo saved.</div>' +
+      '<div class="p-6">' +
+      (state.error
+        ? '<div class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4 border border-red-100">' +
+          state.error +
           "</div>"
-        : '<div class="mt-3 text-xs text-gray-400">No photo selected yet.</div>') +
-      "</div>" +
-      '<button onclick="submitForm()" class="w-full bg-emerald-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-emerald-900 transition flex justify-center items-center">' +
+        : "") +
+      '<div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">LGA</label><div class="relative"><select id="sel-entry-lga" onchange="handleEntryLgaChange(this.value)" class="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none appearance-none"><option value="">Select LGA</option>' +
+      lgaOptions +
+      '</select><div class="absolute right-3 top-3.5 pointer-events-none text-gray-400">' +
+      Icon("chevron-down", "w-5 h-5") +
+      "</div></div></div>" +
+      (entryLga && SPECIAL_LGAS.includes(entryLga)
+        ? '<div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">Community</label><div class="relative"><select id="sel-community" onchange="handleCommunityChange(this.value)" class="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none appearance-none"><option value="">Select community</option>' +
+          lgaCommunityOptions +
+          '</select><div class="absolute right-3 top-3.5 pointer-events-none text-gray-400">' +
+          Icon("chevron-down", "w-5 h-5") +
+          "</div></div></div>"
+        : "") +
+      communitySummary +
+      (entryLga
+        ? SPECIAL_LGAS.includes(entryLga)
+          ? community
+            ? specialFields + photoBlock
+            : '<div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-500 text-center">Select one of the listed communities to open the GLC form.</div>'
+          : standardFields + photoBlock
+        : '<div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-500 text-center">Choose an LGA to continue with the correct registration form.</div>') +
+      '<button onclick="submitForm()" class="w-full bg-emerald-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-emerald-900 transition flex justify-center items-center' +
+      (entryLga && (!SPECIAL_LGAS.includes(entryLga) || community) ? "" : " opacity-60 pointer-events-none") +
+      '">' +
       (state.isLoading ? Icon("loader-2", "animate-spin mr-2 w-5 h-5") : "") +
       (state.isLoading ? t("processing") : state.editingId ? "Update Record" : "Submit") +
       "</button>" +
-      "</div>" +
-      "</div>" +
-      "</div>"
+      "</div></div></div>"
     );
   }
 
@@ -3717,12 +4256,6 @@
         state.formData.lga,
       LGAs[0]
     ).join(", ");
-    const specialCommunity = normalizeSelection(
-      state.formData.specialCommunities ||
-        (state.searchResult && parseRecordSpecialCommunities(state.searchResult)) ||
-        state.formData.specialCommunity,
-      null
-    ).join(", ");
     const mineral = normalizeSelection(
       state.formData.minerals ||
         (state.searchResult && parseRecordMinerals(state.searchResult)) ||
@@ -3744,12 +4277,6 @@
       "</div>" +
       '<h2 class="text-2xl font-bold text-gray-900 mb-2">Record Found</h2>' +
       '<p class="text-sm text-gray-600 mb-8">Download the Miner ID card below.</p>' +
-      (specialCommunity
-        ? '<div class="w-full max-w-2xl mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">' +
-          '<span class="font-semibold">Special communities:</span> ' +
-          escHtml(specialCommunity) +
-          "</div>"
-        : "") +
       '<div class="w-full max-w-2xl mb-8 flex justify-center">' +
       card +
       "</div>" +
@@ -3780,10 +4307,10 @@
       '<h2 class="text-xl font-bold text-gray-800 mb-2">' +
       t("renew") +
       "</h2>" +
-      '<input id="renew-input" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="Enter ART-XXXXXX" />' +
+      '<input id="renew-input" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="Enter miner ID e.g. ART-123456" />' +
       '<div id="renew-msg"></div>' +
       '<button id="renew-btn" onclick="checkRenew()" class="w-full bg-orange-600 text-white py-3 rounded-xl font-bold">Proceed</button>' +
-      '<p class="mt-3 text-xs text-gray-500">Only Artisan IDs are supported.</p>' +
+      '<p class="mt-3 text-xs text-gray-500">Enter any saved miner ID in the format ABC-123456.</p>' +
       "</div>" +
       "</div>"
     );
@@ -4820,10 +5347,6 @@
     if (!a) return "";
 
     const qrText = String(a.id || "").toUpperCase();
-    const specialCommunities = normalizeSelection(
-      a.specialCommunities || a.specialCommunityList || a.specialCommunity,
-      null
-    ).join(", ");
 
     const card =
       '<div class="relative w-[300px] h-[480px] bg-gradient-to-br from-green-800 to-green-950 rounded-xl shadow-2xl overflow-hidden text-white flex flex-col items-center pt-6 pb-4 px-4 border border-yellow-500/30 mx-auto">' +
@@ -4861,14 +5384,6 @@
       (a.locationCapturedAt ? String(a.locationCapturedAt).slice(0, 10) : "—") +
       "</div></div>" +
       "</div>" +
-      (specialCommunities
-        ? '<div class="bg-amber-100/15 rounded p-2 text-[10px] border border-amber-300/25 mt-2 text-left">' +
-          '<div class="text-amber-200 uppercase">Special Communities</div>' +
-          '<div class="font-semibold text-white">' +
-          escHtml(specialCommunities) +
-          "</div>" +
-          "</div>"
-        : "") +
       "</div>" +
       '<div class="mt-auto z-10 w-full flex justify-between items-end">' +
       '<div class="w-16 h-16 border border-white/20 p-1 bg-white rounded"><div class="w-full h-full" data-qr-text="' +
@@ -4934,7 +5449,7 @@
         '<div class="bg-white rounded-2xl shadow-xl p-6 text-center">' +
         '<h2 class="text-xl font-bold text-gray-800 mb-2">Check ID Status</h2>' +
         '<p class="text-xs text-gray-500 mb-3">Enter phone number (if provided) or Artisan ID.</p>' +
-        '<input id="status-input" type="text" maxlength="11" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="08012345678 or ART-XXXXXX" value="' +
+        '<input id="status-input" type="text" maxlength="11" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4" placeholder="08012345678 or ART-123456" value="' +
         escHtml(state.statusLookupInput || "") +
         '" oninput="state.statusLookupInput = this.value" />' +
         '<div id="status-msg"></div>' +
