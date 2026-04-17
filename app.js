@@ -364,6 +364,16 @@
     Gulani: ["KUKUWA GARI", "SHISHIWAJI", "MANAWAJI", "DOKSHI", "ZANGO"],
     Gujba: ["LIGDIR", "KUKUWA TASHA"],
   };
+  const SPECIAL_COMMUNITY_TO_LGA = Object.entries(SPECIAL_COMMUNITIES_BY_LGA).reduce(
+    (acc, [lga, communities]) => {
+      (communities || []).forEach((community) => {
+        acc[String(community)] = lga;
+      });
+      return acc;
+    },
+    {}
+  );
+  const SPECIAL_COMMUNITY_NAMES = Object.keys(SPECIAL_COMMUNITY_TO_LGA);
 
   const STATES = [
     "Abia",
@@ -533,8 +543,10 @@
       address: "",
       mineralSearchQuery: "",
       lgas: [LGAs[0]],
+      specialCommunities: [],
       minerals: ["Gypsum"],
       lga: LGAs[0],
+      specialCommunity: "",
       mineral: "Gypsum",
       photoURL: null,
     },
@@ -945,6 +957,42 @@
     return [String(one)];
   }
 
+  function parseRecordSpecialCommunities(rec) {
+    const fromList = pickFirst(rec, [
+      "specialCommunityList",
+      "SpecialCommunityList",
+      "specialCommunities",
+      "SpecialCommunities",
+      "communities",
+      "Communities",
+    ]);
+    const parsed = normalizeSelection(fromList, null).filter(
+      (community) => !!SPECIAL_COMMUNITY_TO_LGA[String(community)]
+    );
+    if (parsed.length) return parsed;
+    const one = pickFirst(rec, ["specialCommunity", "SpecialCommunity", "community", "Community"]);
+    if (one && SPECIAL_COMMUNITY_TO_LGA[String(one)]) return [String(one)];
+    return [];
+  }
+
+  function getAvailableSpecialCommunities(lgas) {
+    const selectedLgas = normalizeSelection(lgas, null);
+    const out = [];
+    selectedLgas.forEach((lga) => {
+      (SPECIAL_COMMUNITIES_BY_LGA[lga] || []).forEach((community) => {
+        if (!out.includes(community)) out.push(community);
+      });
+    });
+    return out;
+  }
+
+  function syncSpecialCommunitiesWithLgas(lgas, selectedCommunities) {
+    const allowed = new Set(getAvailableSpecialCommunities(lgas));
+    return normalizeSelection(selectedCommunities, null).filter((community) =>
+      allowed.has(community)
+    );
+  }
+
   function hasLga(record, lga) {
     if (!lga) return false;
     return parseRecordLgas(record).includes(lga);
@@ -1130,6 +1178,10 @@
             .filter((d) => d && isLikelyArtisanRecord(d))
             .map((d, rowIndex) => {
             const lgas = parseRecordLgas(d);
+            const specialCommunities = syncSpecialCommunitiesWithLgas(
+              lgas,
+              parseRecordSpecialCommunities(d)
+            );
             const minerals = parseRecordMinerals(d);
             return {
               ...d,
@@ -1141,8 +1193,11 @@
               stateName: normalizeStateName(d.stateName || d.state || d.State || "Yobe"),
               address: d.address || d.Address || "",
               lgas,
+              specialCommunities,
               minerals,
               lgaList: lgas.join(", "),
+              specialCommunity: specialCommunities[0] || "",
+              specialCommunityList: specialCommunities.join(", "),
               mineralList: minerals.join(", "),
               location: d.location || d.lga || d.LGA || lgas.join(", ") || "—",
               mineral: d.mineral || d.Mineral || minerals.join(", ") || "—",
@@ -1514,8 +1569,10 @@
       address: "",
       mineralSearchQuery: "",
       lgas: [LGAs[0]],
+      specialCommunities: [],
       minerals: ["Gypsum"],
       lga: LGAs[0],
+      specialCommunity: "",
       mineral: "Gypsum",
       photoURL: null,
     };
@@ -1613,9 +1670,14 @@
       state.formData.name =
         pickFirst(d, ["name", "Name", "fullName", "Full_Name", "Full Name"]) || "";
       state.formData.lgas = parseRecordLgas(d);
+      state.formData.specialCommunities = syncSpecialCommunitiesWithLgas(
+        state.formData.lgas,
+        parseRecordSpecialCommunities(d)
+      );
       state.formData.minerals = parseRecordMinerals(d);
       state.formData.mineralSearchQuery = "";
       state.formData.lga = state.formData.lgas[0] || LGAs[0];
+      state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
       state.formData.mineral = state.formData.minerals[0] || "Gypsum";
       state.formData.stateName = normalizeStateName(
         pickFirst(d, ["stateName", "state", "State"]) || "Yobe"
@@ -2170,9 +2232,14 @@
     state.formData.stateName = normalizeStateName(a.stateName || a.state || "Yobe");
     state.formData.address = a.address || "";
     state.formData.lgas = parseRecordLgas(a);
+    state.formData.specialCommunities = syncSpecialCommunitiesWithLgas(
+      state.formData.lgas,
+      parseRecordSpecialCommunities(a)
+    );
     state.formData.minerals = parseRecordMinerals(a);
     state.formData.mineralSearchQuery = "";
     state.formData.lga = state.formData.lgas[0] || LGAs[0];
+    state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
     state.formData.mineral = state.formData.minerals[0] || "Gypsum";
     state.formData.photoURL = normalizePhotoURL(a.photoURL || null);
     state.formData.phone = a.phone || "";
@@ -2232,6 +2299,23 @@
     }
     state.formData.lgas = toggleChoice(state.formData.lgas, lga, 3);
     state.formData.lga = state.formData.lgas[0] || "";
+    state.formData.specialCommunities = syncSpecialCommunitiesWithLgas(
+      state.formData.lgas,
+      state.formData.specialCommunities
+    );
+    state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
+    render();
+  };
+
+  window.toggleSpecialCommunitySelection = function (community) {
+    const available = getAvailableSpecialCommunities(state.formData.lgas);
+    if (!available.includes(community)) return;
+    state.formData.specialCommunities = toggleChoice(
+      state.formData.specialCommunities,
+      community,
+      available.length || 1
+    );
+    state.formData.specialCommunity = state.formData.specialCommunities[0] || "";
     render();
   };
 
@@ -2289,6 +2373,10 @@
       if (idx !== -1) {
         const original = state.applications[idx];
         const lgas = normalizeSelection(state.formData.lgas, LGAs[0]).slice(0, 3);
+        const specialCommunities = syncSpecialCommunitiesWithLgas(
+          lgas,
+          state.formData.specialCommunities
+        );
         const minerals = normalizeSelection(state.formData.minerals, "Gypsum").slice(0, 3);
         const updatedApp = {
           ...original,
@@ -2299,6 +2387,9 @@
           lga: lgas[0],
           lgas,
           lgaList: lgas.join(", "),
+          specialCommunity: specialCommunities[0] || "",
+          specialCommunities,
+          specialCommunityList: specialCommunities.join(", "),
           location: lgas.join(", "),
           mineral: minerals.join(", "),
           minerals,
@@ -2342,6 +2433,10 @@
     const createdAtISO = new Date().toISOString();
 
     const lgas = normalizeSelection(state.formData.lgas, LGAs[0]).slice(0, 3);
+    const specialCommunities = syncSpecialCommunitiesWithLgas(
+      lgas,
+      state.formData.specialCommunities
+    );
     const minerals = normalizeSelection(state.formData.minerals, "Gypsum").slice(0, 3);
 
     const backendData = {
@@ -2360,6 +2455,9 @@
       lga: lgas[0],
       lgas,
       lgaList: lgas.join(", "),
+      specialCommunity: specialCommunities[0] || "",
+      specialCommunities,
+      specialCommunityList: specialCommunities.join(", "),
       location: lgas.join(", "),
       mineral: minerals.join(", "),
       minerals,
@@ -2839,8 +2937,37 @@
 
     return (
       '<div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">' +
-      '<div class="font-semibold">Special communities</div>' +
+      '<div class="font-semibold">Special communities (' +
+      SPECIAL_COMMUNITY_NAMES.length +
+      ")</div>" +
       rows.join("") +
+      "</div>"
+    );
+  }
+
+  function renderSpecialCommunityForm() {
+    const available = getAvailableSpecialCommunities(state.formData.lgas);
+    if (!available.length) {
+      return (
+        '<div class="mb-4">' +
+        renderSpecialCommunityReference() +
+        '<div class="mt-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-xs text-gray-500">' +
+        "Select Gulani or Gujba to choose special communities." +
+        "</div>" +
+        "</div>"
+      );
+    }
+
+    return (
+      '<div class="mb-4">' +
+      renderMultiChoice(
+        "Special Communities",
+        available,
+        state.formData.specialCommunities,
+        "toggleSpecialCommunitySelection",
+        "Select the applicable special communities for this miner."
+      ) +
+      renderSpecialCommunityReference() +
       "</div>"
     );
   }
@@ -3437,9 +3564,9 @@
         LGAs,
         state.formData.lgas,
         "toggleLgaSelection",
-        "Select up to 3 LGAs if you operate in multiple locations." +
-          renderSpecialCommunityReference()
+        "Select up to 3 LGAs if you operate in multiple locations."
       ) +
+      renderSpecialCommunityForm() +
       renderSearchableMultiChoice(
         t("formMineral"),
         MINERAL_NAMES,
@@ -3590,6 +3717,12 @@
         state.formData.lga,
       LGAs[0]
     ).join(", ");
+    const specialCommunity = normalizeSelection(
+      state.formData.specialCommunities ||
+        (state.searchResult && parseRecordSpecialCommunities(state.searchResult)) ||
+        state.formData.specialCommunity,
+      null
+    ).join(", ");
     const mineral = normalizeSelection(
       state.formData.minerals ||
         (state.searchResult && parseRecordMinerals(state.searchResult)) ||
@@ -3611,6 +3744,12 @@
       "</div>" +
       '<h2 class="text-2xl font-bold text-gray-900 mb-2">Record Found</h2>' +
       '<p class="text-sm text-gray-600 mb-8">Download the Miner ID card below.</p>' +
+      (specialCommunity
+        ? '<div class="w-full max-w-2xl mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">' +
+          '<span class="font-semibold">Special communities:</span> ' +
+          escHtml(specialCommunity) +
+          "</div>"
+        : "") +
       '<div class="w-full max-w-2xl mb-8 flex justify-center">' +
       card +
       "</div>" +
@@ -4681,6 +4820,10 @@
     if (!a) return "";
 
     const qrText = String(a.id || "").toUpperCase();
+    const specialCommunities = normalizeSelection(
+      a.specialCommunities || a.specialCommunityList || a.specialCommunity,
+      null
+    ).join(", ");
 
     const card =
       '<div class="relative w-[300px] h-[480px] bg-gradient-to-br from-green-800 to-green-950 rounded-xl shadow-2xl overflow-hidden text-white flex flex-col items-center pt-6 pb-4 px-4 border border-yellow-500/30 mx-auto">' +
@@ -4718,6 +4861,14 @@
       (a.locationCapturedAt ? String(a.locationCapturedAt).slice(0, 10) : "—") +
       "</div></div>" +
       "</div>" +
+      (specialCommunities
+        ? '<div class="bg-amber-100/15 rounded p-2 text-[10px] border border-amber-300/25 mt-2 text-left">' +
+          '<div class="text-amber-200 uppercase">Special Communities</div>' +
+          '<div class="font-semibold text-white">' +
+          escHtml(specialCommunities) +
+          "</div>" +
+          "</div>"
+        : "") +
       "</div>" +
       '<div class="mt-auto z-10 w-full flex justify-between items-end">' +
       '<div class="w-16 h-16 border border-white/20 p-1 bg-white rounded"><div class="w-full h-full" data-qr-text="' +
