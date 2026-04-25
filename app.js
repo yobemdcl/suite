@@ -29,6 +29,7 @@
     exitLogs: "ysmco_exitlogs_v2",
     staffLocs: "ysmco_stafflocs_v2",
     scanLogs: "ysmco_scanlogs_v2",
+    pendingRegistrationWrites: "ysmco_pending_registration_writes_v1",
     pwaHintDismissed: "ysmco_pwa_ios_hint_dismissed_v1",
   };
 
@@ -203,23 +204,25 @@
 
   // --- Face models
   let FACE_MODELS_READY = false;
-  Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(
-      "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights"
-    ),
-    faceapi.nets.faceLandmark68Net.loadFromUri(
-      "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights"
-    ),
-    faceapi.nets.faceRecognitionNet.loadFromUri(
-      "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights"
-    ),
-  ])
-    .then(() => {
-      FACE_MODELS_READY = true;
-    })
-    .catch(() => {
-      FACE_MODELS_READY = false;
-    });
+  if (typeof window.faceapi !== "undefined") {
+    Promise.all([
+      window.faceapi.nets.tinyFaceDetector.loadFromUri(
+        "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights"
+      ),
+      window.faceapi.nets.faceLandmark68Net.loadFromUri(
+        "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights"
+      ),
+      window.faceapi.nets.faceRecognitionNet.loadFromUri(
+        "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights"
+      ),
+    ])
+      .then(() => {
+        FACE_MODELS_READY = true;
+      })
+      .catch(() => {
+        FACE_MODELS_READY = false;
+      });
+  }
 
   async function callBackend(payload) {
     if (!GOOGLE_SCRIPT_URL) return null;
@@ -238,6 +241,8 @@
   }
 
   async function saveToGoogleSheet(sheetName, data, options) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+
     const action = (options && options.action) || "save";
     const payload = { action, sheet: sheetName, data };
     try {
@@ -247,8 +252,98 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      return true;
     } catch (e) {}
+    return false;
   }
+
+  let REGISTRATION_SYNC_RUNNING = false;
+
+  function getPendingRegistrationWrites() {
+    return safeArray(lsGet(LS_KEYS.pendingRegistrationWrites, []));
+  }
+
+  function setPendingRegistrationWrites(items) {
+    lsSet(LS_KEYS.pendingRegistrationWrites, safeArray(items));
+  }
+
+  function pendingRegistrationCount() {
+    return getPendingRegistrationWrites().length;
+  }
+
+  function queueRegistrationWrite(data) {
+    if (!data || !data.id) return;
+
+    const pending = getPendingRegistrationWrites();
+    const id = String(data.id);
+    const nextItem = {
+      id,
+      sheet: "Artisans",
+      action: "save",
+      data,
+      queuedAt: new Date().toISOString(),
+      attempts: 0,
+    };
+    const idx = pending.findIndex((item) => String(item && item.id) === id);
+    if (idx === -1) pending.push(nextItem);
+    else pending[idx] = { ...pending[idx], ...nextItem };
+    setPendingRegistrationWrites(pending);
+  }
+
+  function removePendingRegistrationWrite(id) {
+    const safeId = String(id || "");
+    if (!safeId) return;
+    setPendingRegistrationWrites(
+      getPendingRegistrationWrites().filter((item) => String(item && item.id) !== safeId)
+    );
+  }
+
+  function markLocalRegistrationSynced(id) {
+    const safeId = String(id || "");
+    if (!safeId) return;
+
+    const idx = safeArray(state.applications).findIndex((a) => String(a && a.id) === safeId);
+    if (idx === -1) return;
+    state.applications[idx] = {
+      ...state.applications[idx],
+      localSyncStatus: "synced",
+      syncedAt: new Date().toISOString(),
+    };
+    persistLocal();
+  }
+
+  async function flushPendingRegistrationWrites() {
+    if (REGISTRATION_SYNC_RUNNING) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+    const pending = getPendingRegistrationWrites();
+    if (!pending.length) return;
+
+    REGISTRATION_SYNC_RUNNING = true;
+    const remaining = [];
+
+    for (const item of pending) {
+      if (!item || !item.data || !item.id) continue;
+
+      const ok = await saveToGoogleSheet(item.sheet || "Artisans", item.data, {
+        action: item.action || "save",
+      });
+      if (ok) {
+        markLocalRegistrationSynced(item.id);
+      } else {
+        remaining.push({
+          ...item,
+          attempts: Number(item.attempts || 0) + 1,
+          lastAttemptAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    setPendingRegistrationWrites(remaining);
+    REGISTRATION_SYNC_RUNNING = false;
+    render();
+  }
+  window.flushPendingRegistrationWrites = flushPendingRegistrationWrites;
 
   const translations = {
     en: {
@@ -1977,6 +2072,19 @@
 
       window.setView("search-success");
     } else {
+      const localPending = safeArray(state.applications).find((a) => {
+        const localId = String(a && a.id ? a.id : "").trim();
+        const localPhone = normalizePhoneKey(a && (a.phone || a.Phone || ""));
+        const syncPending = String(a && a.localSyncStatus) === "pending";
+        if (!syncPending) return false;
+        return (idCandidate && localId === idCandidate) || (phoneKey && localPhone === phoneKey);
+      });
+      if (localPending) {
+        msgEl.innerText =
+          "Registration is saved on this device and will sync automatically when network is available.";
+        msgEl.className = "text-yellow-700 text-sm mt-2 font-bold";
+        return;
+      }
       msgEl.innerText = "Record not found. Please verify the ID or phone number.";
       msgEl.className = "text-red-500 text-sm mt-2 font-bold";
     }
@@ -2212,10 +2320,24 @@
       if (!v) return;
       stopCamera();
 
-      camStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 720 } },
+      const backCameraConstraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 720 },
+          height: { ideal: 720 },
+        },
         audio: false,
-      });
+      };
+      const fallbackConstraints = {
+        video: { width: { ideal: 720 }, height: { ideal: 720 } },
+        audio: false,
+      };
+
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia(backCameraConstraints);
+      } catch (err) {
+        camStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      }
 
       v.srcObject = camStream;
       v.setAttribute("playsinline", "true");
@@ -2257,10 +2379,10 @@
       img.src = dataUrl;
       await new Promise((r) => (img.onload = r));
 
-      const detections = await faceapi
+      const detections = await window.faceapi
         .detectAllFaces(
           img,
-          new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+          new window.faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
         )
         .withFaceLandmarks();
 
@@ -2301,10 +2423,10 @@
       await new Promise((r) => (img.onload = r));
 
       if (FACE_MODELS_READY) {
-        const detections = await faceapi
+        const detections = await window.faceapi
           .detectAllFaces(
             img,
-            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+            new window.faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
           )
           .withFaceLandmarks();
 
@@ -2806,10 +2928,17 @@
       name: backendData.name,
       location: backendData.location,
       photoURL: backendData.photoURL,
+      localSyncStatus: "pending",
     });
     persistLocal();
 
-    await saveToGoogleSheet("Artisans", backendData);
+    const savedOnline = await saveToGoogleSheet("Artisans", backendData);
+    if (savedOnline) {
+      removePendingRegistrationWrite(backendData.id);
+      markLocalRegistrationSynced(backendData.id);
+    } else {
+      queueRegistrationWrite(backendData);
+    }
 
     setTimeout(() => {
       state.isLoading = false;
@@ -3328,6 +3457,7 @@
   function renderHeader() {
     const showInstall = !state.pwa.isStandalone && (state.pwa.canInstall || state.pwa.isIOS);
     const mobileMenuOpen = !!(state.ui && state.ui.mobileMenuOpen);
+    const unsyncedCount = pendingRegistrationCount();
 
     return (
       '<header class="bg-gradient-to-r from-emerald-900 to-emerald-700 text-white shadow-lg sticky top-0 z-50 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] pl-[calc(1rem+env(safe-area-inset-left))] pr-[calc(1rem+env(safe-area-inset-right))]">' +
@@ -3349,6 +3479,17 @@
       "</div>" +
 
       '<div class="flex items-center gap-2 md:gap-4 shrink-0">' +
+      (unsyncedCount
+        ? '<button onclick="flushPendingRegistrationWrites()" class="inline-flex items-center justify-center bg-yellow-400 hover:bg-yellow-300 text-emerald-950 w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-full transition-all text-xs md:text-sm font-black border border-yellow-200 shadow-sm" title="Pending registrations saved on this device">' +
+          Icon("cloud-upload", "w-4 h-4 sm:mr-2") +
+          '<span class="hidden sm:inline">' +
+          unsyncedCount +
+          " pending</span>" +
+          '<span class="sm:hidden">' +
+          unsyncedCount +
+          "</span>" +
+          "</button>"
+        : "") +
       '<nav class="hidden md:flex space-x-6 text-sm font-medium text-emerald-100">' +
       '<button onclick="setView(\'landing\')" class="hover:text-white hover:underline">' +
       t("home") +
@@ -5518,6 +5659,15 @@
 
   // Boot
   hydrateLocal();
+  window.addEventListener("online", () => {
+    flushPendingRegistrationWrites();
+  });
+  setTimeout(() => {
+    flushPendingRegistrationWrites();
+  }, 1000);
+  setInterval(() => {
+    flushPendingRegistrationWrites();
+  }, 60000);
   if (window.location && window.location.protocol === "file:") {
     // PWA + manifest + service worker + camera permissions + CORS won't work reliably on file://
     // The app must be served over http(s).
