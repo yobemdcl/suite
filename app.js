@@ -2886,16 +2886,14 @@
       return;
     }
 
-    // REQUIRED: GPS capture for artisan registration
+    // Attempt GPS capture, but do not block field registration when offline or unavailable.
     let geo = null;
+    let locationError = "";
     try {
       geo = await getGeoPosition();
     } catch (err) {
-      state.isLoading = false;
-      state.error =
-        "Location permission is required to register a miner. Please allow GPS and try again.";
-      render();
-      return;
+      locationError =
+        err && err.message ? String(err.message) : "Location unavailable during registration.";
     }
 
     const prefix = isSpecial ? communityIdPrefix(community) : "ART";
@@ -2916,10 +2914,13 @@
       expiryDate: iso(state.expiryDate),
       createdAt: createdAtISO,
 
-      // REQUIRED permanent fields
+      // GPS fields are populated when available. Offline devices may submit without them.
       lat: geo?.coords?.latitude ?? null,
       lng: geo?.coords?.longitude ?? null,
-      locationCapturedAt: createdAtISO,
+      locationAccuracy: geo?.coords?.accuracy ?? null,
+      locationCapturedAt: geo ? createdAtISO : "",
+      locationStatus: geo ? "captured" : "missing",
+      locationError,
     };
 
     state.applications = safeArray(state.applications);
@@ -4254,7 +4255,7 @@
       " " +
       (state.editingId ? "Edit Miner Record" : "Register Miner") +
       "</h2>" +
-      '<div class="text-[11px] font-bold opacity-80 mt-1">Select LGA first. GPS will be captured automatically on submission.</div>' +
+      '<div class="text-[11px] font-bold opacity-80 mt-1">Select LGA first. GPS will be captured when available; offline registrations can still be saved.</div>' +
       "</div>" +
       '<div class="p-6">' +
       (state.error
@@ -5371,13 +5372,20 @@
                         <tbody class="divide-y divide-gray-100">
                           ${filteredArtisans.slice(0, 150).map(a => {
                             const hasGps = isFinite(Number(a.lat)) && isFinite(Number(a.lng));
+                            const gpsLabel = hasGps
+                              ? "Yes"
+                              : String(a.localSyncStatus || "") === "pending"
+                                ? "Pending sync"
+                                : String(a.locationStatus || "") === "missing"
+                                  ? "Unavailable"
+                                  : "No";
                             return `
                               <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3">${a.name || '—'}</td>
                                 <td class="px-4 py-3">${a.location || a.lga || '—'}</td>
                                 <td class="px-4 py-3">${a.mineral || '—'}</td>
                                 <td class="px-4 py-3 text-xs ${hasGps ? 'text-emerald-700 font-bold' : 'text-gray-400'}">
-                                  ${hasGps ? 'Yes' : 'No'}
+                                  ${gpsLabel}
                                 </td>
                                 <td class="px-4 py-3 font-mono font-bold">${a.id || '—'}</td>
                               </tr>
