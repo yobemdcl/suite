@@ -18,6 +18,7 @@
     "2651": { name: "Mubarak Hussaini Tinja", role: "staff" },
     "5722": { name: "Suleiman Ibrahim Gimba", role: "staff" },
     "3077": { name: "Usman Mohammed Jajere", role: "staff", phone: "08160923077" },
+    "9409": { name: "Al Amin Muhammad", role: "staff", phone: "07068309409" },
     "3333": { name: "Executive", role: "md" },
   };
 
