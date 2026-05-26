@@ -1323,6 +1323,93 @@
     return parseRecordLgas(record).includes(lga);
   }
 
+  function adminStatusPriority(status) {
+    const s = String(status || "").toLowerCase();
+    if (s === "pending") return 0;
+    if (s === "approved") return 1;
+    if (s === "rejected") return 2;
+    return 3;
+  }
+
+  function getFilteredAdminApps() {
+    const statusFilter = String(state.adminStatusFilter || "All");
+    const locationFilter = String(state.adminLocationFilter || "All");
+    const search = String(state.adminSearch || "").toLowerCase();
+    const sortMode = String(state.adminSortMode || "pendingFirst");
+
+    const filteredApps = state.applications.filter((a) => {
+      const status = String(a.status || "Pending");
+      const matchesSearch =
+        String(a.name || "").toLowerCase().includes(search) ||
+        String(a.id || "").toLowerCase().includes(search);
+      const matchesStatus =
+        statusFilter === "All"
+          ? true
+          : status.toLowerCase() === statusFilter.toLowerCase();
+      const matchesLocation =
+        locationFilter === "All" ? true : hasLga(a, locationFilter);
+      return matchesSearch && matchesStatus && matchesLocation;
+    });
+
+    return filteredApps.slice().sort((a, b) => {
+      const aStatus = String(a.status || "Pending");
+      const bStatus = String(b.status || "Pending");
+
+      if (sortMode === "approvedFirst") {
+        const approvedFirstPriority = (status) => {
+          const s = String(status || "").toLowerCase();
+          if (s === "approved") return 0;
+          if (s === "pending") return 1;
+          if (s === "rejected") return 2;
+          return 3;
+        };
+        const d = approvedFirstPriority(aStatus) - approvedFirstPriority(bStatus);
+        if (d !== 0) return d;
+      } else if (sortMode === "newest") {
+        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0;
+        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0;
+        if (tb !== ta) return tb - ta;
+      } else if (sortMode === "oldest") {
+        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0;
+        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0;
+        if (ta !== tb) return ta - tb;
+      } else if (sortMode === "locationAZ") {
+        const la = parseRecordLgas(a).join(", ");
+        const lb = parseRecordLgas(b).join(", ");
+        const d = la.localeCompare(lb);
+        if (d !== 0) return d;
+      } else if (sortMode === "locationZA") {
+        const la = parseRecordLgas(a).join(", ");
+        const lb = parseRecordLgas(b).join(", ");
+        const d = lb.localeCompare(la);
+        if (d !== 0) return d;
+      } else {
+        const d = adminStatusPriority(aStatus) - adminStatusPriority(bStatus);
+        if (d !== 0) return d;
+      }
+
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
+  }
+
+  function csvCell(value) {
+    const s = String(value ?? "");
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+
+  function downloadCsvFile(fileName, rows) {
+    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   function normalizeDriveUrlMaybe(url) {
     const u = String(url || "").trim();
     if (!u) return "";
@@ -2572,6 +2659,30 @@
   window.setAdminSortMode = function (val) {
     state.adminSortMode = val || "pendingFirst";
     render();
+  };
+
+  window.downloadFilteredArtisanIds = function () {
+    const rows = getFilteredAdminApps();
+    if (!rows.length) {
+      uiAlert("No artisan IDs found for the current view/filter.");
+      return;
+    }
+
+    const lga = String(state.adminLocationFilter || "All").replace(/[^a-z0-9_-]+/gi, "-");
+    const status = String(state.adminStatusFilter || "All").replace(/[^a-z0-9_-]+/gi, "-");
+    const fileName = "artisan-ids-" + lga + "-" + status + "-" + todayISO() + ".csv";
+
+    downloadCsvFile(fileName, [
+      ["No", "Artisan ID", "Name", "LGA", "Mineral", "Status"],
+      ...rows.map((a, idx) => [
+        idx + 1,
+        a.id || "",
+        a.name || "",
+        parseRecordLgas(a).join(", ") || a.location || a.lga || "",
+        parseRecordMinerals(a).join(", ") || a.mineral || "",
+        a.status || "Pending",
+      ]),
+    ]);
   };
 
   window.handleMDSearch = function (event) {
@@ -4712,73 +4823,10 @@
     const statusFilter = String(state.adminStatusFilter || "All");
     const locationFilter = String(state.adminLocationFilter || "All");
     const sortMode = String(state.adminSortMode || "pendingFirst");
-    const locationOptions = Array.from(
-      new Set(
-        state.applications
-          .map((a) => String(a.location || a.lga || "—").trim() || "—")
-          .filter(Boolean)
-      )
-    ).sort((a, b) => a.localeCompare(b));
-    const filteredApps = state.applications.filter((a) => {
-      const status = String(a.status || "Pending");
-      const location = String(a.location || a.lga || "—").trim() || "—";
-      const matchesSearch =
-        String(a.name || "").toLowerCase().includes(state.adminSearch) ||
-        String(a.id || "").toLowerCase().includes(state.adminSearch);
-      const matchesStatus =
-        statusFilter === "All"
-          ? true
-          : status.toLowerCase() === statusFilter.toLowerCase();
-      const matchesLocation = locationFilter === "All" ? true : location === locationFilter;
-      return matchesSearch && matchesStatus && matchesLocation;
-    });
-    const statusPriority = (status) => {
-      const s = String(status || "").toLowerCase();
-      if (s === "pending") return 0;
-      if (s === "approved") return 1;
-      if (s === "rejected") return 2;
-      return 3;
-    };
-    const sortedApps = filteredApps.slice().sort((a, b) => {
-      const aStatus = String(a.status || "Pending");
-      const bStatus = String(b.status || "Pending");
-
-      if (sortMode === "approvedFirst") {
-        const approvedFirstPriority = (status) => {
-          const s = String(status || "").toLowerCase();
-          if (s === "approved") return 0;
-          if (s === "pending") return 1;
-          if (s === "rejected") return 2;
-          return 3;
-        };
-        const d = approvedFirstPriority(aStatus) - approvedFirstPriority(bStatus);
-        if (d !== 0) return d;
-      } else if (sortMode === "newest") {
-        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0;
-        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0;
-        if (tb !== ta) return tb - ta;
-      } else if (sortMode === "oldest") {
-        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0;
-        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0;
-        if (ta !== tb) return ta - tb;
-      } else if (sortMode === "locationAZ") {
-        const la = String(a.location || a.lga || "—");
-        const lb = String(b.location || b.lga || "—");
-        const d = la.localeCompare(lb);
-        if (d !== 0) return d;
-      } else if (sortMode === "locationZA") {
-        const la = String(a.location || a.lga || "—");
-        const lb = String(b.location || b.lga || "—");
-        const d = lb.localeCompare(la);
-        if (d !== 0) return d;
-      } else {
-        const d = statusPriority(aStatus) - statusPriority(bStatus);
-        if (d !== 0) return d;
-      }
-
-      return String(a.name || "").localeCompare(String(b.name || ""));
-    });
+    const sortedApps = getFilteredAdminApps();
     const pendingCount = state.applications.filter((a) => (a.status || "Pending") === "Pending").length;
+    const currentLgaTotal =
+      locationFilter === "All" ? state.applications.length : state.applications.filter((a) => hasLga(a, locationFilter)).length;
 
     const loc = state.staffLocStatus;
     const locOk = !!loc.lastLoggedAt && !loc.error;
@@ -4880,7 +4928,9 @@
       Icon("inbox", "w-5 h-5 text-gray-500") +
       " Miner Records Queue</h3>" +
       '<div class="relative w-full md:w-52">' +
-      '<input type="text" oninput="handleAdminSearch(event)" placeholder="Search..." class="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
+      '<input type="text" value="' +
+      escHtml(state.adminSearch || "") +
+      '" oninput="handleAdminSearch(event)" placeholder="Search..." class="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
       '<div class="absolute left-2.5 top-2.5 text-gray-400">' +
       Icon("search", "w-3 h-3") +
       "</div>" +
@@ -4900,16 +4950,18 @@
       ">Rejected</option>" +
       "</select>" +
       '<select onchange="setAdminLocationFilter(this.value)" class="w-full md:w-44 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
-      '<option value="All">All Locations</option>' +
-      locationOptions
-        .map(function (loc) {
+      '<option value="All"' +
+      (locationFilter === "All" ? " selected" : "") +
+      ">All LGAs</option>" +
+      LGAs
+        .map(function (lga) {
           return (
             '<option value="' +
-            escHtml(loc) +
+            escHtml(lga) +
             '"' +
-            (locationFilter === loc ? " selected" : "") +
+            (locationFilter === lga ? " selected" : "") +
             ">" +
-            escHtml(loc) +
+            escHtml(lga) +
             "</option>"
           );
         })
@@ -4937,6 +4989,14 @@
       "</select>" +
       "</div>" +
       '<div class="flex flex-wrap gap-2 justify-start md:justify-end">' +
+      '<div class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-700">' +
+      "View: " +
+      fmtNum(sortedApps.length) +
+      (locationFilter !== "All" ? " • " + escHtml(locationFilter) + ": " + fmtNum(currentLgaTotal) : "") +
+      "</div>" +
+      '<button onclick="downloadFilteredArtisanIds()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
+      Icon("download", "w-4 h-4") +
+      " Download IDs</button>" +
       '<button onclick="openRegisterMiner()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("user-plus", "w-4 h-4") +
       " Register Miner</button>" +
@@ -4954,6 +5014,7 @@
       '<table class="w-full text-sm text-left">' +
       '<thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">' +
       "<tr>" +
+      '<th class="px-6 py-3 w-16">No.</th>' +
       '<th class="px-6 py-3">Miner</th>' +
       '<th class="px-6 py-3">Location</th>' +
       '<th class="px-6 py-3">Status</th>' +
@@ -4962,7 +5023,7 @@
       "</thead>" +
       '<tbody class="divide-y divide-gray-100">' +
       sortedApps
-        .map((a) => {
+        .map((a, idx) => {
           const status = a.status || "Pending";
           const statusClass =
             status === "Approved"
@@ -4973,6 +5034,9 @@
 
           return (
             '<tr class="hover:bg-gray-50 transition">' +
+            '<td class="px-6 py-4 font-mono text-xs font-bold text-gray-500">' +
+            (idx + 1) +
+            "</td>" +
             '<td class="px-6 py-4 font-medium text-gray-900">' +
             "<div>" +
             (a.name || "—") +
@@ -4982,7 +5046,7 @@
             "</div>" +
             "</td>" +
             '<td class="px-6 py-4">' +
-            (a.location || a.lga || "—") +
+            (parseRecordLgas(a).join(", ") || a.location || a.lga || "—") +
             "</td>" +
             '<td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ' +
             statusClass +
@@ -5029,7 +5093,7 @@
         })
         .join("") +
       (sortedApps.length === 0
-        ? '<tr><td colspan="4" class="px-6 py-6 text-center text-gray-500">No records found.</td></tr>'
+        ? '<tr><td colspan="5" class="px-6 py-6 text-center text-gray-500">No records found.</td></tr>'
         : "") +
       "</tbody>" +
       "</table>" +
@@ -5170,6 +5234,8 @@
         String(a.id || "").toLowerCase().includes(mdSearch);
       return byLga && bySearch;
     });
+    const mdLgaTotal =
+      mdLga === "All" ? state.applications.length : state.applications.filter((a) => hasLga(a, mdLga)).length;
 
     const revenueByMineral = Object.entries(state.md.revenueByMineral || {})
       .sort((a, b) => b[1] - a[1])
@@ -5353,7 +5419,7 @@
                       <option value="All"${mdLga==='All'?' selected':''}>All LGAs</option>
                       ${LGAs.map(l => `<option value="${l}"${mdLga===l?' selected':''}>${l}</option>`).join('')}
                     </select>
-                    <div class="text-xs font-bold text-gray-700">Filtered: ${filteredArtisans.length}</div>
+                    <div class="text-xs font-bold text-gray-700">Filtered: ${filteredArtisans.length}${mdLga !== "All" ? ` • ${mdLga}: ${mdLgaTotal}` : ""}</div>
                   </div>
                 </div>
 
@@ -5363,6 +5429,7 @@
                       <table class="w-full text-sm text-left">
                         <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
                           <tr>
+                            <th class="px-4 py-3 w-14">No.</th>
                             <th class="px-4 py-3">Artisan</th>
                             <th class="px-4 py-3">LGA</th>
                             <th class="px-4 py-3">Mineral</th>
@@ -5371,7 +5438,7 @@
                           </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                          ${filteredArtisans.slice(0, 150).map(a => {
+                          ${filteredArtisans.slice(0, 150).map((a, idx) => {
                             const hasGps = isFinite(Number(a.lat)) && isFinite(Number(a.lng));
                             const gpsLabel = hasGps
                               ? "Yes"
@@ -5382,9 +5449,10 @@
                                   : "No";
                             return `
                               <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 font-mono text-xs font-bold text-gray-500">${idx + 1}</td>
                                 <td class="px-4 py-3">${a.name || '—'}</td>
-                                <td class="px-4 py-3">${a.location || a.lga || '—'}</td>
-                                <td class="px-4 py-3">${a.mineral || '—'}</td>
+                                <td class="px-4 py-3">${parseRecordLgas(a).join(", ") || a.location || a.lga || '—'}</td>
+                                <td class="px-4 py-3">${parseRecordMinerals(a).join(", ") || a.mineral || '—'}</td>
                                 <td class="px-4 py-3 text-xs ${hasGps ? 'text-emerald-700 font-bold' : 'text-gray-400'}">
                                   ${gpsLabel}
                                 </td>
@@ -5392,7 +5460,7 @@
                               </tr>
                             `;
                           }).join('')}
-                          ${filteredArtisans.length === 0 ? '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">No artisans found.</td></tr>' : ''}
+                          ${filteredArtisans.length === 0 ? '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-500">No artisans found.</td></tr>' : ''}
                         </tbody>
                       </table>
                     </div>
