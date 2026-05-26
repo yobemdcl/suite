@@ -1410,6 +1410,41 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function sanitizeFileNamePart(value, fallback) {
+    const s = String(value || "")
+      .trim()
+      .replace(/[^a-z0-9_-]+/gi, "-")
+      .replace(/^-+|-+$/g, "");
+    return s || fallback || "file";
+  }
+
+  function downloadBlobFile(fileName, blob) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function canvasToPngBlob(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Could not create PNG"));
+      }, "image/png");
+    });
+  }
+
+  function getRecordExpiryDate(rec) {
+    return (
+      pickFirst(rec, ["expiryDate", "ExpiryDate", "expiresAt", "ExpiresAt", "expiry", "Expiry"]) ||
+      addYears(1)
+    );
+  }
+
   function normalizeDriveUrlMaybe(url) {
     const u = String(url || "").trim();
     if (!u) return "";
@@ -2661,28 +2696,109 @@
     render();
   };
 
-  window.downloadFilteredArtisanIds = function () {
+  window.downloadFilteredArtisanIds = async function () {
     const rows = getFilteredAdminApps();
     if (!rows.length) {
-      uiAlert("No artisan IDs found for the current view/filter.");
+      uiAlert("No artisan ID cards found for the current view/filter.");
       return;
     }
 
-    const lga = String(state.adminLocationFilter || "All").replace(/[^a-z0-9_-]+/gi, "-");
-    const status = String(state.adminStatusFilter || "All").replace(/[^a-z0-9_-]+/gi, "-");
-    const fileName = "artisan-ids-" + lga + "-" + status + "-" + todayISO() + ".csv";
+    if (typeof window.JSZip !== "function") {
+      uiAlert("Bulk ID card download is not ready yet. Please check your internet connection and reload the page.");
+      return;
+    }
+    if (typeof window.html2canvas !== "function") {
+      uiAlert("ID card image generator is not ready yet. Please reload the page.");
+      return;
+    }
 
-    downloadCsvFile(fileName, [
-      ["No", "Artisan ID", "Name", "LGA", "Mineral", "Status"],
-      ...rows.map((a, idx) => [
-        idx + 1,
-        a.id || "",
-        a.name || "",
-        parseRecordLgas(a).join(", ") || a.location || a.lga || "",
-        parseRecordMinerals(a).join(", ") || a.mineral || "",
-        a.status || "Pending",
-      ]),
-    ]);
+    const btn = document.getElementById("download-id-cards-btn");
+    const originalHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add("opacity-70", "cursor-wait");
+    }
+
+    const root = document.createElement("div");
+    root.style.position = "fixed";
+    root.style.left = "-10000px";
+    root.style.top = "0";
+    root.style.width = "360px";
+    root.style.pointerEvents = "none";
+    root.setAttribute("aria-hidden", "true");
+    document.body.appendChild(root);
+
+    try {
+      const zip = new window.JSZip();
+      for (let i = 0; i < rows.length; i++) {
+        const a = rows[i];
+        const id = a.id || "";
+        const name = a.name || "Artisan";
+        const lga = parseRecordLgas(a).join(", ") || a.location || a.lga || "—";
+        const mineral = parseRecordMinerals(a).join(", ") || a.mineral || "—";
+        const expiry = getRecordExpiryDate(a);
+        const photo = resolvePhotoFromRecord(a, ASSETS.miningLogo) || ASSETS.miningLogo;
+
+        if (btn) {
+          btn.innerHTML =
+            Icon("loader-2", "animate-spin w-4 h-4") +
+            " Preparing " +
+            (i + 1) +
+            "/" +
+            rows.length;
+          try {
+            window.lucide?.createIcons();
+          } catch (e) {}
+        }
+
+        root.innerHTML = renderIDCard(id, name, lga, mineral, expiry, photo);
+        hydrateQrCodes(root);
+        const cleanup = await inlineImagesForDownload(root);
+        try {
+          await waitForImages(root, 8000);
+          const card = root.firstElementChild;
+          const canvas = await html2canvas(card, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: null,
+          });
+          const blob = await canvasToPngBlob(canvas);
+          const fileName =
+            String(i + 1).padStart(3, "0") +
+            "-" +
+            sanitizeFileNamePart(id || name, "artisan-id") +
+            ".png";
+          zip.file(fileName, blob);
+        } finally {
+          try {
+            cleanup && cleanup();
+          } catch (e) {}
+        }
+      }
+
+      if (btn) btn.innerHTML = Icon("loader-2", "animate-spin w-4 h-4") + " Zipping...";
+      try {
+        window.lucide?.createIcons();
+      } catch (e) {}
+
+      const lga = sanitizeFileNamePart(state.adminLocationFilter || "All", "All");
+      const status = sanitizeFileNamePart(state.adminStatusFilter || "All", "All");
+      const blob = await zip.generateAsync({ type: "blob" });
+      downloadBlobFile("artisan-id-cards-" + lga + "-" + status + "-" + todayISO() + ".zip", blob);
+    } catch (err) {
+      console.error("Bulk ID card download failed", err);
+      uiAlert("Could not generate the ID card images. Please try again.");
+    } finally {
+      root.remove();
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("opacity-70", "cursor-wait");
+        btn.innerHTML = originalHtml;
+        try {
+          window.lucide?.createIcons();
+        } catch (e) {}
+      }
+    }
   };
 
   window.handleMDSearch = function (event) {
@@ -4994,9 +5110,9 @@
       fmtNum(sortedApps.length) +
       (locationFilter !== "All" ? " • " + escHtml(locationFilter) + ": " + fmtNum(currentLgaTotal) : "") +
       "</div>" +
-      '<button onclick="downloadFilteredArtisanIds()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
+      '<button id="download-id-cards-btn" onclick="downloadFilteredArtisanIds()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("download", "w-4 h-4") +
-      " Download IDs</button>" +
+      " Download ID Cards</button>" +
       '<button onclick="openRegisterMiner()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("user-plus", "w-4 h-4") +
       " Register Miner</button>" +
