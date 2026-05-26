@@ -1392,24 +1392,6 @@
     });
   }
 
-  function csvCell(value) {
-    const s = String(value ?? "");
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-
-  function downloadCsvFile(fileName, rows) {
-    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
   function sanitizeFileNamePart(value, fallback) {
     const s = String(value || "")
       .trim()
@@ -1429,20 +1411,115 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function canvasToPngBlob(canvas) {
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Could not create PNG"));
-      }, "image/png");
-    });
-  }
-
   function getRecordExpiryDate(rec) {
     return (
       pickFirst(rec, ["expiryDate", "ExpiryDate", "expiresAt", "ExpiresAt", "expiry", "Expiry"]) ||
       addYears(1)
     );
+  }
+
+  function escXml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function fitSvgText(value, maxChars) {
+    const s = String(value || "").trim();
+    if (!maxChars || s.length <= maxChars) return s;
+    return s.slice(0, Math.max(0, maxChars - 3)).trimEnd() + "...";
+  }
+
+  function makeQrDataUrl(text, size) {
+    const value = String(text || "").trim();
+    if (!value || typeof window.QRCode !== "function") return "";
+
+    const box = document.createElement("div");
+    box.style.position = "fixed";
+    box.style.left = "-10000px";
+    box.style.top = "0";
+    document.body.appendChild(box);
+
+    try {
+      // eslint-disable-next-line no-new
+      new window.QRCode(box, {
+        text: value,
+        width: size || 96,
+        height: size || 96,
+        correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.M : undefined,
+      });
+      const canvas = box.querySelector("canvas");
+      if (canvas) return canvas.toDataURL("image/png");
+      const img = box.querySelector("img");
+      return img ? img.src : "";
+    } catch (e) {
+      return "";
+    } finally {
+      box.remove();
+    }
+  }
+
+  function renderIDCardSvg(rec) {
+    const id = String(rec.id || "").toUpperCase();
+    const name = String(rec.name || "Artisan").toUpperCase();
+    const lga = parseRecordLgas(rec).join(", ") || rec.location || rec.lga || "—";
+    const mineral = parseRecordMinerals(rec).join(", ") || rec.mineral || "—";
+    const expiry = formatDate(getRecordExpiryDate(rec));
+    const photo = resolvePhotoFromRecord(rec, "");
+    const qr = makeQrDataUrl(id, 96);
+    const photoImage = photo
+      ? `<image href="${escXml(photo)}" x="110" y="154" width="120" height="120" preserveAspectRatio="xMidYMid slice" clip-path="url(#photoClip)" />`
+      : `<circle cx="170" cy="214" r="60" fill="#d1d5db" /><text x="170" y="221" text-anchor="middle" font-size="14" font-family="Inter, Arial" fill="#6b7280">PHOTO</text>`;
+    const qrImage = qr
+      ? `<image href="${escXml(qr)}" x="242" y="442" width="68" height="68" />`
+      : `<text x="276" y="480" text-anchor="middle" font-size="13" font-family="monospace" fill="#111827">QR</text>`;
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="540" viewBox="0 0 340 540">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#166534"/>
+      <stop offset="100%" stop-color="#052e16"/>
+    </linearGradient>
+    <clipPath id="photoClip"><circle cx="170" cy="214" r="60"/></clipPath>
+    <pattern id="watermark" width="140" height="140" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)">
+      <text x="0" y="72" font-size="22" font-family="Arial" fill="#ffffff" opacity="0.06">AUTHENTIC</text>
+    </pattern>
+  </defs>
+  <rect width="340" height="540" rx="18" fill="url(#bg)"/>
+  <rect x="2" y="2" width="336" height="536" rx="16" fill="none" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+  <rect width="340" height="540" fill="url(#watermark)"/>
+  <text x="170" y="282" text-anchor="middle" font-size="54" font-family="Arial" font-weight="800" fill="#ffffff" opacity="0.05" transform="rotate(45 170 270)">YOBE STATE</text>
+
+  <circle cx="170" cy="52" r="24" fill="#ffffff" opacity="0.12"/>
+  <text x="170" y="59" text-anchor="middle" font-size="20" font-family="Arial" font-weight="800" fill="#facc15">Y</text>
+  <text x="170" y="92" text-anchor="middle" font-size="15" font-family="Georgia, serif" font-weight="700" fill="#facc15">YOBE MINING DEVELOPMENT COMPANY</text>
+  <rect x="117" y="104" width="106" height="20" rx="10" fill="#eab308"/>
+  <text x="170" y="118" text-anchor="middle" font-size="10" font-family="Arial" font-weight="800" fill="#111827">MINER ID CARD</text>
+
+  <circle cx="170" cy="214" r="64" fill="none" stroke="#facc15" stroke-width="5"/>
+  ${photoImage}
+  <circle cx="221" cy="261" r="15" fill="#facc15" stroke="#ffffff" stroke-width="3"/>
+  <path d="M214 261l4 4 9-10" fill="none" stroke="#064e3b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="170" y="318" text-anchor="middle" font-size="19" font-family="Arial" font-weight="800" fill="#ffffff">${escXml(fitSvgText(name, 28))}</text>
+  <rect x="93" y="331" width="154" height="26" rx="13" fill="#000000" opacity="0.28"/>
+  <text x="170" y="349" text-anchor="middle" font-size="13" font-family="Courier New, monospace" font-weight="700" fill="#fde047">${escXml(id || "—")}</text>
+
+  <rect x="34" y="376" width="272" height="50" rx="9" fill="#ffffff" opacity="0.10" stroke="#ffffff" stroke-opacity="0.18"/>
+  <text x="52" y="397" font-size="9" font-family="Arial" font-weight="700" fill="#6ee7b7">LGA</text>
+  <text x="52" y="415" font-size="13" font-family="Arial" font-weight="800" fill="#ffffff">${escXml(fitSvgText(lga, 24))}</text>
+  <text x="288" y="397" text-anchor="end" font-size="9" font-family="Arial" font-weight="700" fill="#6ee7b7">MINERAL</text>
+  <text x="288" y="415" text-anchor="end" font-size="13" font-family="Arial" font-weight="800" fill="#ffffff">${escXml(fitSvgText(mineral, 20))}</text>
+
+  <text x="34" y="468" font-size="9" font-family="Arial" font-weight="700" fill="#34d399">EXPIRES</text>
+  <text x="34" y="489" font-size="15" font-family="Courier New, monospace" font-weight="800" fill="#ffffff">${escXml(expiry)}</text>
+  <rect x="238" y="438" width="76" height="76" rx="4" fill="#ffffff"/>
+  ${qrImage}
+</svg>`;
   }
 
   function normalizeDriveUrlMaybe(url) {
@@ -2707,11 +2784,6 @@
       uiAlert("Bulk ID card download is not ready yet. Please check your internet connection and reload the page.");
       return;
     }
-    if (typeof window.html2canvas !== "function") {
-      uiAlert("ID card image generator is not ready yet. Please reload the page.");
-      return;
-    }
-
     const btn = document.getElementById("download-id-cards-btn");
     const originalHtml = btn ? btn.innerHTML : "";
     if (btn) {
@@ -2719,30 +2791,16 @@
       btn.classList.add("opacity-70", "cursor-wait");
     }
 
-    const root = document.createElement("div");
-    root.style.position = "fixed";
-    root.style.left = "-10000px";
-    root.style.top = "0";
-    root.style.width = "360px";
-    root.style.pointerEvents = "none";
-    root.setAttribute("aria-hidden", "true");
-    document.body.appendChild(root);
-
     try {
       const zip = new window.JSZip();
       for (let i = 0; i < rows.length; i++) {
         const a = rows[i];
         const id = a.id || "";
-        const name = a.name || "Artisan";
-        const lga = parseRecordLgas(a).join(", ") || a.location || a.lga || "—";
-        const mineral = parseRecordMinerals(a).join(", ") || a.mineral || "—";
-        const expiry = getRecordExpiryDate(a);
-        const photo = resolvePhotoFromRecord(a, ASSETS.miningLogo) || ASSETS.miningLogo;
 
-        if (btn) {
+        if (btn && (i === 0 || i === rows.length - 1 || i % 25 === 0)) {
           btn.innerHTML =
             Icon("loader-2", "animate-spin w-4 h-4") +
-            " Preparing " +
+            " Adding " +
             (i + 1) +
             "/" +
             rows.length;
@@ -2751,29 +2809,14 @@
           } catch (e) {}
         }
 
-        root.innerHTML = renderIDCard(id, name, lga, mineral, expiry, photo);
-        hydrateQrCodes(root);
-        const cleanup = await inlineImagesForDownload(root);
-        try {
-          await waitForImages(root, 8000);
-          const card = root.firstElementChild;
-          const canvas = await html2canvas(card, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: null,
-          });
-          const blob = await canvasToPngBlob(canvas);
-          const fileName =
-            String(i + 1).padStart(3, "0") +
-            "-" +
-            sanitizeFileNamePart(id || name, "artisan-id") +
-            ".png";
-          zip.file(fileName, blob);
-        } finally {
-          try {
-            cleanup && cleanup();
-          } catch (e) {}
-        }
+        const fileName =
+          String(i + 1).padStart(4, "0") +
+          "-" +
+          sanitizeFileNamePart(id || a.name, "artisan-id") +
+          ".svg";
+        zip.file(fileName, renderIDCardSvg(a));
+
+        if (i % 50 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       if (btn) btn.innerHTML = Icon("loader-2", "animate-spin w-4 h-4") + " Zipping...";
@@ -2787,9 +2830,8 @@
       downloadBlobFile("artisan-id-cards-" + lga + "-" + status + "-" + todayISO() + ".zip", blob);
     } catch (err) {
       console.error("Bulk ID card download failed", err);
-      uiAlert("Could not generate the ID card images. Please try again.");
+      uiAlert("Could not generate the ID card image ZIP. Please try again.");
     } finally {
-      root.remove();
       if (btn) {
         btn.disabled = false;
         btn.classList.remove("opacity-70", "cursor-wait");
