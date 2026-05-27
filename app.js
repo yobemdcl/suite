@@ -1478,7 +1478,7 @@
       : `<text x="276" y="480" text-anchor="middle" font-size="13" font-family="monospace" fill="#111827">QR</text>`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="340" height="540" viewBox="0 0 340 540">
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="540" viewBox="0 0 340 540" preserveAspectRatio="none" style="display:block;background:#052e16">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#166534"/>
@@ -1489,8 +1489,9 @@
       <text x="0" y="72" font-size="22" font-family="Arial" fill="#ffffff" opacity="0.06">AUTHENTIC</text>
     </pattern>
   </defs>
-  <rect width="340" height="540" rx="18" fill="url(#bg)"/>
-  <rect x="2" y="2" width="336" height="536" rx="16" fill="none" stroke="#eab308" stroke-width="2" opacity="0.7"/>
+  <rect x="0" y="0" width="340" height="540" fill="#052e16"/>
+  <rect width="340" height="540" fill="url(#bg)"/>
+  <rect x="1" y="1" width="338" height="538" fill="none" stroke="#eab308" stroke-width="2" opacity="0.7"/>
   <rect width="340" height="540" fill="url(#watermark)"/>
   <text x="170" y="282" text-anchor="middle" font-size="54" font-family="Arial" font-weight="800" fill="#ffffff" opacity="0.05" transform="rotate(45 170 270)">YOBE STATE</text>
 
