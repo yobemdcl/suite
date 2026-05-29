@@ -873,6 +873,7 @@
     },
 
     mdFilterLga: "All",
+    mdFilterCommunity: "All",
     mdSearch: "",
 
     exitLogModal: { open: false },
@@ -893,6 +894,7 @@
     adminSearch: "",
     adminStatusFilter: "All",
     adminLocationFilter: "All",
+    adminCommunityFilter: "All",
     adminSortMode: "pendingFirst",
     applications: [],
     previewAppId: null,
@@ -1209,6 +1211,10 @@
     return pickBestRecord(matches);
   }
 
+  function findRecordById(rows, id) {
+    return pickBestById(rows, id);
+  }
+
   function pickBestByPhone(rows, phoneKey) {
     const key = normalizePhoneKey(phoneKey);
     if (!key) return null;
@@ -1318,9 +1324,49 @@
     return [String(one)];
   }
 
+  function parseRecordCommunity(rec) {
+    return String(
+      pickFirst(rec, [
+        "community",
+        "Community",
+        "village",
+        "Village",
+        "communityName",
+        "CommunityName",
+      ]) || ""
+    ).trim();
+  }
+
   function hasLga(record, lga) {
     if (!lga) return false;
     return parseRecordLgas(record).includes(lga);
+  }
+
+  function hasCommunity(record, community) {
+    const target = normalizeCommunityKey(community);
+    if (!target) return true;
+    return normalizeCommunityKey(parseRecordCommunity(record)) === target;
+  }
+
+  function getCommunitiesForLga(lga, records) {
+    const target = String(lga || "").trim();
+    if (!target || target === "All") return [];
+
+    const byKey = new Map();
+    COMMUNITY_OPTIONS.forEach((item) => {
+      if (String(item.lga || "").trim() !== target) return;
+      const key = normalizeCommunityKey(item.community);
+      if (key && !byKey.has(key)) byKey.set(key, item.community);
+    });
+
+    safeArray(records).forEach((rec) => {
+      if (!hasLga(rec, target)) return;
+      const community = parseRecordCommunity(rec);
+      const key = normalizeCommunityKey(community);
+      if (key && !byKey.has(key)) byKey.set(key, community);
+    });
+
+    return Array.from(byKey.values()).sort((a, b) => String(a).localeCompare(String(b)));
   }
 
   function adminStatusPriority(status) {
@@ -1334,6 +1380,7 @@
   function getFilteredAdminApps() {
     const statusFilter = String(state.adminStatusFilter || "All");
     const locationFilter = String(state.adminLocationFilter || "All");
+    const communityFilter = String(state.adminCommunityFilter || "All");
     const search = String(state.adminSearch || "").toLowerCase();
     const sortMode = String(state.adminSortMode || "pendingFirst");
 
@@ -1348,7 +1395,9 @@
           : status.toLowerCase() === statusFilter.toLowerCase();
       const matchesLocation =
         locationFilter === "All" ? true : hasLga(a, locationFilter);
-      return matchesSearch && matchesStatus && matchesLocation;
+      const matchesCommunity =
+        communityFilter === "All" ? true : hasCommunity(a, communityFilter);
+      return matchesSearch && matchesStatus && matchesLocation && matchesCommunity;
     });
 
     return filteredApps.slice().sort((a, b) => {
@@ -1409,6 +1458,93 @@
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function excelCell(value) {
+    return escHtml(String(value == null ? "" : value));
+  }
+
+  function buildMinerReportHtml(rows, title) {
+    const headers = [
+      "No.",
+      "Miner Name",
+      "Miner ID",
+      "Status",
+      "Phone",
+      "NIN",
+      "Email",
+      "State",
+      "LGA",
+      "Community",
+      "District",
+      "Postal Code",
+      "Address",
+      "Minerals",
+      "Card Type",
+      "Holder Type",
+      "Issue Date",
+      "Expiry Date",
+      "Created At",
+      "Updated At",
+      "Photo / ID Image",
+      "GPS Latitude",
+      "GPS Longitude",
+    ];
+    const bodyRows = safeArray(rows).map((rec, idx) => {
+      const values = [
+        idx + 1,
+        rec.name || rec.Name || "",
+        rec.id || rec.ID || rec.Id || "",
+        rec.status || rec.Status || "Pending",
+        rec.phone || rec.Phone || "",
+        rec.nin || rec.NIN || "",
+        rec.email || rec.Email || "",
+        rec.stateName || rec.StateName || rec.state || rec.State || "Yobe",
+        parseRecordLgas(rec).join(", "),
+        parseRecordCommunity(rec),
+        rec.district || rec.District || "",
+        rec.postalCode || rec.PostalCode || "",
+        rec.address || rec.Address || "",
+        parseRecordMinerals(rec).join(", "),
+        rec.cardType || rec.CardType || "",
+        rec.holderType || rec.HolderType || "",
+        rec.issueDate || rec.IssueDate || "",
+        pickFirst(rec, ["expiryDate", "ExpiryDate", "expiresAt", "ExpiresAt", "expiry", "Expiry"]) || "",
+        rec.createdAt || rec.CreatedAt || "",
+        rec.updatedAt || rec.UpdatedAt || "",
+        resolvePhotoFromRecord(rec, ""),
+        rec.lat || rec.Lat || "",
+        rec.lng || rec.Lng || "",
+      ];
+      return "<tr>" + values.map((value) => "<td>" + excelCell(value) + "</td>").join("") + "</tr>";
+    });
+
+    return (
+      '<html><head><meta charset="UTF-8" />' +
+      "<style>table{border-collapse:collapse}th,td{border:1px solid #999;padding:6px;mso-number-format:'\\@';}th{background:#d1fae5;font-weight:700}.title{font-size:18px;font-weight:700}</style>" +
+      "</head><body>" +
+      '<div class="title">' +
+      excelCell(title) +
+      "</div>" +
+      "<table><thead><tr>" +
+      headers.map((h) => "<th>" + excelCell(h) + "</th>").join("") +
+      "</tr></thead><tbody>" +
+      bodyRows.join("") +
+      "</tbody></table></body></html>"
+    );
+  }
+
+  function downloadMinerReport(rows, scopeLabel) {
+    if (!safeArray(rows).length) {
+      uiAlert("No miner records found for this report.");
+      return;
+    }
+    const label = sanitizeFileNamePart(scopeLabel || "all-miners", "all-miners");
+    const html = buildMinerReportHtml(rows, "Miner Registration Report - " + (scopeLabel || "All Miners"));
+    downloadBlobFile(
+      "miner-report-" + label + "-" + todayISO() + ".xls",
+      new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" })
+    );
   }
 
   function getRecordExpiryDate(rec) {
@@ -2767,11 +2903,26 @@
   };
   window.setAdminLocationFilter = function (val) {
     state.adminLocationFilter = val || "All";
+    state.adminCommunityFilter = "All";
+    render();
+  };
+  window.setAdminCommunityFilter = function (val) {
+    state.adminCommunityFilter = val || "All";
     render();
   };
   window.setAdminSortMode = function (val) {
     state.adminSortMode = val || "pendingFirst";
     render();
+  };
+
+  window.downloadFilteredMinerReport = function () {
+    const rows = getFilteredAdminApps();
+    const parts = [
+      state.adminLocationFilter && state.adminLocationFilter !== "All" ? state.adminLocationFilter : "All LGAs",
+      state.adminCommunityFilter && state.adminCommunityFilter !== "All" ? state.adminCommunityFilter : "All Communities",
+      state.adminStatusFilter && state.adminStatusFilter !== "All" ? state.adminStatusFilter : "All Status",
+    ];
+    downloadMinerReport(rows, parts.join(" - "));
   };
 
   window.downloadFilteredArtisanIds = async function () {
@@ -2851,7 +3002,32 @@
 
   window.setMDLgaFilter = function (val) {
     state.mdFilterLga = val || "All";
+    state.mdFilterCommunity = "All";
     render();
+  };
+
+  window.setMDCommunityFilter = function (val) {
+    state.mdFilterCommunity = val || "All";
+    render();
+  };
+
+  window.downloadMDMinerReport = function () {
+    const mdSearch = state.mdSearch || "";
+    const mdLga = state.mdFilterLga || "All";
+    const mdCommunity = state.mdFilterCommunity || "All";
+    const rows = state.applications.filter((a) => {
+      const byLga = mdLga === "All" || hasLga(a, mdLga);
+      const byCommunity = mdCommunity === "All" || hasCommunity(a, mdCommunity);
+      const bySearch =
+        String(a.name || "").toLowerCase().includes(mdSearch) ||
+        String(a.id || "").toLowerCase().includes(mdSearch);
+      return byLga && byCommunity && bySearch;
+    });
+    const parts = [
+      mdLga !== "All" ? mdLga : "All LGAs",
+      mdCommunity !== "All" ? mdCommunity : "All Communities",
+    ];
+    downloadMinerReport(rows, parts.join(" - "));
   };
 
   window.setStaffExitFilterDate = function (val) {
@@ -3553,6 +3729,73 @@
       try {
         cleanup && cleanup();
       } catch (e) {}
+    }
+  };
+
+  window.downloadElementPdf = async function (elementId, fileName) {
+    const element = document.getElementById(elementId);
+    const jsPDF = window.jspdf && window.jspdf.jsPDF;
+    if (!element) return;
+    if (typeof jsPDF !== "function") {
+      uiAlert("PDF download is not ready yet. Please check your internet connection and reload the page.");
+      return;
+    }
+
+    let cleanup = null;
+    try {
+      hydrateQrCodes(element);
+      cleanup = await inlineImagesForDownload(element);
+      await waitForImages(element, 8000);
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: null,
+      });
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: [85, 135],
+      });
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 85, 135);
+      pdf.save(fileName + ".pdf");
+    } catch (err) {
+      console.error("PDF download failed", err);
+      uiAlert("Could not generate PDF. Please try again.");
+    } finally {
+      try {
+        cleanup && cleanup();
+      } catch (e) {}
+    }
+  };
+
+  window.downloadRecordIdCard = function (id, format) {
+    const rec = findRecordById(state.applications, id);
+    if (!rec) {
+      uiAlert("Miner record not found.");
+      return;
+    }
+    const host = document.createElement("div");
+    host.style.position = "fixed";
+    host.style.left = "-10000px";
+    host.style.top = "0";
+    host.innerHTML = renderIDCard(
+      rec.id || id,
+      rec.name || "Artisan",
+      parseRecordLgas(rec).join(", ") || rec.location || rec.lga || "—",
+      parseRecordMinerals(rec).join(", ") || rec.mineral || "—",
+      getRecordExpiryDate(rec),
+      resolvePhotoFromRecord(rec, ASSETS.miningLogo) || ASSETS.miningLogo
+    );
+    document.body.appendChild(host);
+    const target = host.querySelector("#download-target");
+    const targetId = "download-target-temp-" + Date.now();
+    if (target) target.id = targetId;
+    const fileName = "MinerID_" + sanitizeFileNamePart(rec.id || id, "miner-id");
+    const finish = () => setTimeout(() => host.remove(), 500);
+    if (format === "pdf") {
+      window.downloadElementPdf(targetId, fileName).finally(finish);
+    } else {
+      window.downloadElement(targetId, fileName).finally(finish);
     }
   };
 
@@ -4701,6 +4944,14 @@
       Icon("download") +
       " " +
       t("downloadID") +
+      " Image" +
+      "</button>" +
+      '<button onclick="downloadElementPdf(\'download-target\', \'MinerID_' +
+      id +
+      "\')" +
+      '" class="bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition flex items-center gap-2">' +
+      Icon("file-text") +
+      " Download PDF" +
       "</button>" +
       '<button onclick="setView(\'miner-portal\')" class="bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition">Back to Menu</button>' +
       "</div>" +
@@ -4981,8 +5232,10 @@
   function renderAdminDashboard() {
     const statusFilter = String(state.adminStatusFilter || "All");
     const locationFilter = String(state.adminLocationFilter || "All");
+    const communityFilter = String(state.adminCommunityFilter || "All");
     const sortMode = String(state.adminSortMode || "pendingFirst");
     const sortedApps = getFilteredAdminApps();
+    const adminCommunities = getCommunitiesForLga(locationFilter, state.applications);
     const pendingCount = state.applications.filter((a) => (a.status || "Pending") === "Pending").length;
     const currentLgaTotal =
       locationFilter === "All" ? state.applications.length : state.applications.filter((a) => hasLga(a, locationFilter)).length;
@@ -5126,6 +5379,30 @@
         })
         .join("") +
       "</select>" +
+      '<select onchange="setAdminCommunityFilter(this.value)" class="w-full md:w-52 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500' +
+      (locationFilter === "All" ? " opacity-60" : "") +
+      '"' +
+      (locationFilter === "All" ? " disabled" : "") +
+      ">" +
+      '<option value="All"' +
+      (communityFilter === "All" ? " selected" : "") +
+      ">" +
+      (locationFilter === "All" ? "Select LGA first" : "All Communities") +
+      "</option>" +
+      adminCommunities
+        .map(function (community) {
+          return (
+            '<option value="' +
+            escHtml(community) +
+            '"' +
+            (communityFilter === community ? " selected" : "") +
+            ">" +
+            escHtml(community) +
+            "</option>"
+          );
+        })
+        .join("") +
+      "</select>" +
       '<select onchange="setAdminSortMode(this.value)" class="w-full md:w-44 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
       '<option value="pendingFirst"' +
       (sortMode === "pendingFirst" ? " selected" : "") +
@@ -5155,7 +5432,10 @@
       "</div>" +
       '<button id="download-id-cards-btn" onclick="downloadFilteredArtisanIds()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("download", "w-4 h-4") +
-      " Download ID Cards</button>" +
+      " ID Cards ZIP</button>" +
+      '<button onclick="downloadFilteredMinerReport()" class="bg-amber-500 hover:bg-amber-600 text-amber-950 px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
+      Icon("file-spreadsheet", "w-4 h-4") +
+      " Excel Report</button>" +
       '<button onclick="openRegisterMiner()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("user-plus", "w-4 h-4") +
       " Register Miner</button>" +
@@ -5206,6 +5486,9 @@
             "</td>" +
             '<td class="px-6 py-4">' +
             (parseRecordLgas(a).join(", ") || a.location || a.lga || "—") +
+            (parseRecordCommunity(a)
+              ? '<div class="text-[10px] text-gray-500 mt-1">Community: ' + escHtml(parseRecordCommunity(a)) + "</div>"
+              : "") +
             "</td>" +
             '<td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ' +
             statusClass +
@@ -5213,6 +5496,16 @@
             status +
             "</span></td>" +
             '<td class="px-6 py-4"><div class="flex items-center justify-center gap-2">' +
+            '<button onclick="downloadRecordIdCard(\'' +
+            escHtml(a.id || "") +
+            '\', \'image\')" title="Download image" class="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 transition">' +
+            Icon("image", "w-4 h-4") +
+            "</button>" +
+            '<button onclick="downloadRecordIdCard(\'' +
+            escHtml(a.id || "") +
+            '\', \'pdf\')" title="Download PDF" class="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 transition">' +
+            Icon("file-text", "w-4 h-4") +
+            "</button>" +
             '<button onclick="viewApplication(\'' +
             a.id +
             '\')" title="View" class="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition">' +
@@ -5375,6 +5668,8 @@
 
     const mdSearch = state.mdSearch || "";
     const mdLga = state.mdFilterLga || "All";
+    const mdCommunity = state.mdFilterCommunity || "All";
+    const mdCommunities = getCommunitiesForLga(mdLga, state.applications);
 
     const lgaCounts = LGAs.reduce((acc, l) => {
       acc[l] = 0;
@@ -5388,10 +5683,11 @@
 
     const filteredArtisans = state.applications.filter((a) => {
       const byLga = mdLga === "All" || hasLga(a, mdLga);
+      const byCommunity = mdCommunity === "All" || hasCommunity(a, mdCommunity);
       const bySearch =
         String(a.name || "").toLowerCase().includes(mdSearch) ||
         String(a.id || "").toLowerCase().includes(mdSearch);
-      return byLga && bySearch;
+      return byLga && byCommunity && bySearch;
     });
     const mdLgaTotal =
       mdLga === "All" ? state.applications.length : state.applications.filter((a) => hasLga(a, mdLga)).length;
@@ -5570,7 +5866,7 @@
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <h3 class="font-bold text-gray-900 flex items-center gap-2">${Icon("filter","w-5 h-5 text-emerald-700")} Artisan Filtering & Summary</h3>
-                    <div class="text-xs text-gray-500">Total artisans, filter by LGA, search by name/ID, and LGA breakdown.</div>
+                    <div class="text-xs text-gray-500">Total artisans, filter by LGA/community, search by name/ID, and LGA breakdown.</div>
                   </div>
                   <div class="flex flex-wrap items-center gap-3">
                     <input type="text" oninput="handleMDSearch(event)" placeholder="Search name or ID..." class="px-3 py-2 border border-gray-300 rounded-xl text-xs w-56">
@@ -5578,6 +5874,13 @@
                       <option value="All"${mdLga==='All'?' selected':''}>All LGAs</option>
                       ${LGAs.map(l => `<option value="${l}"${mdLga===l?' selected':''}>${l}</option>`).join('')}
                     </select>
+                    <select onchange="setMDCommunityFilter(this.value)" class="px-3 py-2 border border-gray-300 rounded-xl text-xs ${mdLga === "All" ? "opacity-60" : ""}" ${mdLga === "All" ? "disabled" : ""}>
+                      <option value="All"${mdCommunity==='All'?' selected':''}>${mdLga === "All" ? "Select LGA first" : "All Communities"}</option>
+                      ${mdCommunities.map(c => `<option value="${escHtml(c)}"${mdCommunity===c?' selected':''}>${escHtml(c)}</option>`).join('')}
+                    </select>
+                    <button onclick="downloadMDMinerReport()" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-amber-950 px-3 py-2 rounded-xl text-xs font-black">
+                      ${Icon("file-spreadsheet","w-4 h-4")} Excel Report
+                    </button>
                     <div class="text-xs font-bold text-gray-700">Filtered: ${filteredArtisans.length}${mdLga !== "All" ? ` • ${mdLga}: ${mdLgaTotal}` : ""}</div>
                   </div>
                 </div>
@@ -5610,7 +5913,7 @@
                               <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3 font-mono text-xs font-bold text-gray-500">${idx + 1}</td>
                                 <td class="px-4 py-3">${a.name || '—'}</td>
-                                <td class="px-4 py-3">${parseRecordLgas(a).join(", ") || a.location || a.lga || '—'}</td>
+                                <td class="px-4 py-3">${parseRecordLgas(a).join(", ") || a.location || a.lga || '—'}${parseRecordCommunity(a) ? `<div class="text-[10px] text-gray-500 mt-1">Community: ${escHtml(parseRecordCommunity(a))}</div>` : ""}</td>
                                 <td class="px-4 py-3">${parseRecordMinerals(a).join(", ") || a.mineral || '—'}</td>
                                 <td class="px-4 py-3 text-xs ${hasGps ? 'text-emerald-700 font-bold' : 'text-gray-400'}">
                                   ${gpsLabel}
@@ -5871,12 +6174,14 @@
 
         const mdSearch = state.mdSearch || "";
         const mdLga = state.mdFilterLga || "All";
+        const mdCommunity = state.mdFilterCommunity || "All";
         const filteredArtisans = state.applications.filter((a) => {
           const byLga = mdLga === "All" || hasLga(a, mdLga);
+          const byCommunity = mdCommunity === "All" || hasCommunity(a, mdCommunity);
           const bySearch =
             String(a.name || "").toLowerCase().includes(mdSearch) ||
             String(a.id || "").toLowerCase().includes(mdSearch);
-          return byLga && bySearch;
+          return byLga && byCommunity && bySearch;
         });
 
         updateMDMapMarkers(filteredArtisans, state.md.staffLatest || []);
