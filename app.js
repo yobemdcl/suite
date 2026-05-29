@@ -1819,12 +1819,15 @@
   // =========================
   // Load artisans (miners)
   // =========================
-  async function loadApplications() {
+  async function loadApplications(options) {
+    const opts = options || {};
     // Local first
     hydrateLocal();
 
-    state.isLoading = true;
-    render();
+    if (!opts.silent) {
+      state.isLoading = true;
+      render();
+    }
 
     try {
       const artisans = await callBackend({ action: "readSheet", sheet: "Artisans" });
@@ -1897,8 +1900,10 @@
       state.md.artisansTotal = state.applications.length;
     }
 
-    state.isLoading = false;
-    render();
+    if (!opts.silent) {
+      state.isLoading = false;
+      render();
+    }
   }
 
   // =========================
@@ -3485,8 +3490,9 @@
 
     (async () => {
       try {
-        await loadApplications();
-        await loadExitLogs();
+        const appsPromise = loadApplications({ silent: true }).then(render);
+        const logsPromise = loadExitLogs();
+        await Promise.all([appsPromise, logsPromise]);
         if (acct.role === "md") await loadMDData();
       } finally {
         state.authSigningIn = false;
@@ -3562,14 +3568,16 @@
 
     (async () => {
       try {
-        await loadApplications();
-        await loadExitLogs();
+        const appsPromise = loadApplications({ silent: true }).then(render);
+        const logsPromise = loadExitLogs();
+        await Promise.all([appsPromise, logsPromise]);
         if (pending.role === "md") await loadMDData();
       } finally {}
     })();
   };
   window.refreshMDNow = function () {
-    loadApplications().then(loadExitLogs).then(loadMDData);
+    const appsPromise = loadApplications({ silent: true }).then(render);
+    Promise.all([appsPromise, loadExitLogs()]).then(() => loadMDData());
   };
 
   window.logout = function () {
@@ -5273,7 +5281,7 @@
       "</div>" +
       "</div>" +
 
-      '<div class="max-w-6xl mx-auto p-6 md:p-8">' +
+      '<div class="max-w-7xl mx-auto p-6 md:p-8">' +
       '<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">' +
       '<div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">' +
       '<div class="flex justify-between items-start mb-2">' +
@@ -5333,9 +5341,8 @@
       "</div>" +
 
       '<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">' +
-      '<div class="px-6 py-4 border-b border-gray-100 bg-gray-50">' +
-      '<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">' +
-      '<div class="flex items-center justify-between md:justify-start gap-3">' +
+      '<div class="px-6 py-4 border-b border-gray-100 bg-gray-50 space-y-3">' +
+      '<div class="flex flex-wrap items-center gap-3">' +
       '<h3 class="font-bold text-gray-800 flex items-center gap-2">' +
       Icon("inbox", "w-5 h-5 text-gray-500") +
       " Miner Records Queue</h3>" +
@@ -5424,7 +5431,7 @@
       ">Sort: Location Z-A</option>" +
       "</select>" +
       "</div>" +
-      '<div class="flex flex-wrap gap-2 justify-start md:justify-end">' +
+      '<div class="flex flex-wrap gap-2 items-center justify-start border-t border-gray-200 pt-3">' +
       '<div class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-700">' +
       "View: " +
       fmtNum(sortedApps.length) +
@@ -5432,10 +5439,10 @@
       "</div>" +
       '<button id="download-id-cards-btn" onclick="downloadFilteredArtisanIds()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("download", "w-4 h-4") +
-      " ID Cards ZIP</button>" +
+      " Download All ID Cards</button>" +
       '<button onclick="downloadFilteredMinerReport()" class="bg-amber-500 hover:bg-amber-600 text-amber-950 px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("file-spreadsheet", "w-4 h-4") +
-      " Excel Report</button>" +
+      " Download Excel Report</button>" +
       '<button onclick="openRegisterMiner()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("user-plus", "w-4 h-4") +
       " Register Miner</button>" +
@@ -5445,7 +5452,6 @@
       '<button onclick="openExitLog()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2">' +
       Icon("log-out", "w-4 h-4") +
       " Log Exit</button>" +
-      "</div>" +
       "</div>" +
       "</div>" +
 
