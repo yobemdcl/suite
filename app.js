@@ -1486,7 +1486,6 @@
       "Expiry Date",
       "Created At",
       "Updated At",
-      "Photo / ID Image",
       "GPS Latitude",
       "GPS Longitude",
     ];
@@ -1512,7 +1511,6 @@
         pickFirst(rec, ["expiryDate", "ExpiryDate", "expiresAt", "ExpiresAt", "expiry", "Expiry"]) || "",
         rec.createdAt || rec.CreatedAt || "",
         rec.updatedAt || rec.UpdatedAt || "",
-        resolvePhotoFromRecord(rec, ""),
         rec.lat || rec.Lat || "",
         rec.lng || rec.Lng || "",
       ];
@@ -1605,7 +1603,10 @@
     const lga = parseRecordLgas(rec).join(", ") || rec.location || rec.lga || "—";
     const mineral = parseRecordMinerals(rec).join(", ") || rec.mineral || "—";
     const expiry = formatDate(getRecordExpiryDate(rec));
-    const photo = opts.skipPhoto ? "" : resolvePhotoFromRecord(rec, "");
+    let photo = opts.skipPhoto ? "" : resolvePhotoFromRecord(rec, "");
+    if (opts.inlinePhotosOnly && photo && !String(photo).startsWith("data:image")) {
+      photo = "";
+    }
     const qr = makeQrDataUrl(id, 96);
     const photoImage = photo
       ? `<image href="${escXml(photo)}" x="110" y="154" width="120" height="120" preserveAspectRatio="xMidYMid slice" clip-path="url(#photoClip)" />`
@@ -1694,12 +1695,25 @@
     });
   }
 
-  async function renderIDCardPngBlob(rec) {
+  async function renderIDCardPngBlob(rec, options) {
     try {
-      return await svgTextToPngBlob(renderIDCardSvg(rec));
+      return await svgTextToPngBlob(renderIDCardSvg(rec, options));
     } catch (e) {
       return svgTextToPngBlob(renderIDCardSvg(rec, { skipPhoto: true }));
     }
+  }
+
+  async function runLimitedQueue(items, limit, worker) {
+    const list = safeArray(items);
+    const size = Math.max(1, Number(limit || 1));
+    let next = 0;
+    const runners = Array.from({ length: Math.min(size, list.length) }, async () => {
+      while (next < list.length) {
+        const index = next++;
+        await worker(list[index], index);
+      }
+    });
+    await Promise.all(runners);
   }
 
   function normalizeDriveUrlMaybe(url) {
@@ -2993,31 +3007,29 @@
 
     try {
       const zip = new window.JSZip();
-      for (let i = 0; i < rows.length; i++) {
-        const a = rows[i];
+      let completed = 0;
+      await runLimitedQueue(rows, 8, async (a, i) => {
         const id = a.id || "";
-
-        if (btn && (i === 0 || i === rows.length - 1 || i % 25 === 0)) {
+        const fileName =
+          String(i + 1).padStart(4, "0") +
+          "-" +
+          sanitizeFileNamePart(id || a.name, "artisan-id") +
+          ".png";
+        const pngBlob = await renderIDCardPngBlob(a, { inlinePhotosOnly: true });
+        zip.file(fileName, pngBlob);
+        completed += 1;
+        if (btn && (completed === 1 || completed === rows.length || completed % 10 === 0)) {
           btn.innerHTML =
             Icon("loader-2", "animate-spin w-4 h-4") +
-            " Creating PNG " +
-            (i + 1) +
+            " Created PNG " +
+            completed +
             "/" +
             rows.length;
           try {
             window.lucide?.createIcons();
           } catch (e) {}
         }
-
-        const fileName =
-          String(i + 1).padStart(4, "0") +
-          "-" +
-          sanitizeFileNamePart(id || a.name, "artisan-id") +
-          ".png";
-        zip.file(fileName, await renderIDCardPngBlob(a));
-
-        if (i % 10 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
-      }
+      });
 
       if (btn) btn.innerHTML = Icon("loader-2", "animate-spin w-4 h-4") + " Zipping...";
       try {
