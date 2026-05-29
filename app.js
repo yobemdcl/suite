@@ -1598,13 +1598,14 @@
     }
   }
 
-  function renderIDCardSvg(rec) {
+  function renderIDCardSvg(rec, options) {
+    const opts = options || {};
     const id = String(rec.id || "").toUpperCase();
     const name = String(rec.name || "Artisan").toUpperCase();
     const lga = parseRecordLgas(rec).join(", ") || rec.location || rec.lga || "—";
     const mineral = parseRecordMinerals(rec).join(", ") || rec.mineral || "—";
     const expiry = formatDate(getRecordExpiryDate(rec));
-    const photo = resolvePhotoFromRecord(rec, "");
+    const photo = opts.skipPhoto ? "" : resolvePhotoFromRecord(rec, "");
     const qr = makeQrDataUrl(id, 96);
     const photoImage = photo
       ? `<image href="${escXml(photo)}" x="110" y="154" width="120" height="120" preserveAspectRatio="xMidYMid slice" clip-path="url(#photoClip)" />`
@@ -1657,6 +1658,48 @@
   <rect x="238" y="438" width="76" height="76" rx="4" fill="#ffffff"/>
   ${qrImage}
 </svg>`;
+  }
+
+  function svgTextToPngBlob(svgText) {
+    return new Promise((resolve, reject) => {
+      const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 340;
+          canvas.height = 540;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(
+            (blob) => {
+              URL.revokeObjectURL(url);
+              if (blob) resolve(blob);
+              else reject(new Error("PNG conversion returned an empty blob."));
+            },
+            "image/png",
+            0.95
+          );
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          reject(e);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not load ID card SVG for PNG conversion."));
+      };
+      img.src = url;
+    });
+  }
+
+  async function renderIDCardPngBlob(rec) {
+    try {
+      return await svgTextToPngBlob(renderIDCardSvg(rec));
+    } catch (e) {
+      return svgTextToPngBlob(renderIDCardSvg(rec, { skipPhoto: true }));
+    }
   }
 
   function normalizeDriveUrlMaybe(url) {
@@ -2957,7 +3000,7 @@
         if (btn && (i === 0 || i === rows.length - 1 || i % 25 === 0)) {
           btn.innerHTML =
             Icon("loader-2", "animate-spin w-4 h-4") +
-            " Adding " +
+            " Creating PNG " +
             (i + 1) +
             "/" +
             rows.length;
@@ -2970,10 +3013,10 @@
           String(i + 1).padStart(4, "0") +
           "-" +
           sanitizeFileNamePart(id || a.name, "artisan-id") +
-          ".svg";
-        zip.file(fileName, renderIDCardSvg(a));
+          ".png";
+        zip.file(fileName, await renderIDCardPngBlob(a));
 
-        if (i % 50 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+        if (i % 10 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       if (btn) btn.innerHTML = Icon("loader-2", "animate-spin w-4 h-4") + " Zipping...";
