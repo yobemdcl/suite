@@ -1,9 +1,11 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = "yobe-mining-pwa-v17";
+const CACHE_NAME = "yobe-mining-pwa-v18";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./app.js",
+  "./cluster-assignments.js",
+  "./manawaji-community-review.csv",
   "./offline.html",
   "./manifest.webmanifest",
   "./assets/icon.svg",
@@ -95,6 +97,7 @@ self.addEventListener("fetch", (event) => {
   const path = url.pathname || "";
   const isAppShellScript =
     path.endsWith("/app.js") ||
+    path.endsWith("/cluster-assignments.js") ||
     path.endsWith("/index.html") ||
     path.endsWith("/service-worker.js");
 

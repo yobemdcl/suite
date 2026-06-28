@@ -85,6 +85,7 @@
         action: "setPin",
         accountName: account,
         role: String(role || "").trim() || "staff",
+        currentPin: String(state.auth.pin || "").trim(),
         newPin: safePin,
       });
       return !!(res && res.result === "success" && res.ok);
@@ -551,7 +552,7 @@
       district: "Gulani",
       postalCode: "621102",
       villages:
-        "Bara; Borno-Kiji; Bularaba; Bumsa; Burasari; Chandam; Dokshi; Gabai; Gagure; Gargari; Garin Tuwo; Kukuwa; Kushimaga; Ngulwa; Ngurun; Nguzoa; Ruhu; Tetteba; Zango",
+        "Bara; Borno-Kiji; Bularaba; Bumsa; Burasari; Chandam; Dokshi; Gabai; Gagure; Gargari; Garin Tuwo; Gulani; Kukuwa; Kushimaga; Njibulwa; Ngulwa; Ngurun; Nguzoa; Ruhu; Teteba; Zango",
     },
     {
       lga: "Jakusko",
@@ -623,6 +624,16 @@
   ];
 
   const SPECIAL_COMMUNITIES = [
+    "Bumsa",
+    "Bara",
+    "Teteba",
+    "Garin Tuwo",
+    "Ruhu",
+    "Gabai",
+    "Kushimaga",
+    "Njibulwa",
+    "Gulani",
+    "Gagure",
     "KUKUWA GARI",
     "SHISHIWAJI",
     "MANAWAJI",
@@ -632,14 +643,19 @@
     "KUKUWA TASHA",
   ];
   const SPECIAL_COMMUNITIES_BY_LGA = {
-    Gulani: ["KUKUWA GARI", "SHISHIWAJI", "MANAWAJI", "DOKSHI", "ZANGO"],
+    Gulani: [
+      "Bumsa", "Bara", "Teteba", "Garin Tuwo", "Ruhu", "Gabai",
+      "Kushimaga", "Njibulwa", "Gulani", "Gagure",
+      "KUKUWA GARI", "SHISHIWAJI", "MANAWAJI", "DOKSHI", "ZANGO",
+    ],
     Gujba: ["LIGDIR", "KUKUWA TASHA"],
   };
 
   function normalizeCommunityKey(value) {
-    return String(value || "")
+    const key = String(value || "")
       .toUpperCase()
       .replace(/[^A-Z]/g, "");
+    return key === "TETTEBA" ? "TETEBA" : key;
   }
 
   const SPECIAL_COMMUNITY_KEYS = new Set(
@@ -874,6 +890,7 @@
 
     mdFilterLga: "All",
     mdFilterCommunity: "All",
+    mdFilterCluster: "All",
     mdSearch: "",
 
     exitLogModal: { open: false },
@@ -895,6 +912,7 @@
     adminStatusFilter: "All",
     adminLocationFilter: "All",
     adminCommunityFilter: "All",
+    adminClusterFilter: "All",
     adminSortMode: "pendingFirst",
     applications: [],
     previewAppId: null,
@@ -1325,7 +1343,7 @@
   }
 
   function parseRecordCommunity(rec) {
-    return String(
+    const community = String(
       pickFirst(rec, [
         "community",
         "Community",
@@ -1333,8 +1351,80 @@
         "Village",
         "communityName",
         "CommunityName",
+        "specialCommunity",
+        "SpecialCommunity",
       ]) || ""
     ).trim();
+    return normalizeCommunityKey(community) === "TETEBA" ? "Teteba" : community;
+  }
+
+  function applyClusterAssignment(rec) {
+    if (!rec) return rec;
+    const migrated = applySafeManawajiClassification(rec);
+    const id = extractRecordId(migrated);
+    const assignment = window.YMDCL_CLUSTER_ASSIGNMENTS?.[id];
+    return assignment
+      ? { ...migrated, ...assignment, clusterAssignedAt: assignment.clusterAssignedAt || '2026-06-27' }
+      : migrated;
+  }
+
+  const GULANI_RECLASSIFICATION_NAMES = [
+    'Bumsa', 'Bara', 'Teteba', 'Garin Tuwo', 'Ruhu', 'Gabai',
+    'Kushimaga', 'Njibulwa', 'Gulani', 'Gagure',
+  ];
+
+  function applySafeManawajiClassification(rec) {
+    const current = String(pickFirst(rec, [
+      'community', 'Community', 'specialCommunity', 'SpecialCommunity',
+      'village', 'Village',
+    ]) || '');
+    if (normalizeCommunityKey(current) !== 'MANAWAJI') return rec;
+    const address = String(pickFirst(rec, ['address', 'Address']) || '').toUpperCase();
+    const matches = GULANI_RECLASSIFICATION_NAMES.filter((name) => {
+      const variants = name === 'Teteba' ? ['TETEBA', 'TETTEBA'] : [name.toUpperCase()];
+      return variants.some((variant) => {
+        const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp('(^|[^A-Z])' + escaped + '([^A-Z]|$)').test(address);
+      });
+    });
+    const unique = Array.from(new Set(matches));
+    if (unique.length !== 1) {
+      return { ...rec, communityReviewStatus: 'Manual Confirmation Required' };
+    }
+    return {
+      ...rec,
+      previousCommunity: current,
+      community: unique[0],
+      communityLga: 'Gulani',
+      communityReviewStatus: 'Ready for confirmation',
+      communityProposedFromAddress: true,
+    };
+  }
+
+  function hasCluster(record, cluster) {
+    if (!cluster || cluster === "All") return true;
+    return String(record?.clusterName || "") === String(cluster);
+  }
+
+  function getClustersForFilters(records, lga, community) {
+    if (!['Gulani', 'Gujba'].includes(String(lga || ''))) return [];
+    const names = new Set();
+    safeArray(records).forEach((rec) => {
+      if (String(rec.status || '').toLowerCase() !== 'approved') return;
+      if (!hasLga(rec, lga)) return;
+      if (community && community !== 'All' && !hasCommunity(rec, community)) return;
+      if (rec.clusterName) names.add(String(rec.clusterName));
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }
+
+  function countClusterMembers(records, cluster, lga, community) {
+    return safeArray(records).filter((rec) =>
+      String(rec.status || '').toLowerCase() === 'approved' &&
+      hasLga(rec, lga) &&
+      (!community || community === 'All' || hasCommunity(rec, community)) &&
+      hasCluster(rec, cluster)
+    ).length;
   }
 
   function hasLga(record, lga) {
@@ -1381,6 +1471,7 @@
     const statusFilter = String(state.adminStatusFilter || "All");
     const locationFilter = String(state.adminLocationFilter || "All");
     const communityFilter = String(state.adminCommunityFilter || "All");
+    const clusterFilter = String(state.adminClusterFilter || "All");
     const search = String(state.adminSearch || "").toLowerCase();
     const sortMode = String(state.adminSortMode || "pendingFirst");
 
@@ -1397,7 +1488,9 @@
         locationFilter === "All" ? true : hasLga(a, locationFilter);
       const matchesCommunity =
         communityFilter === "All" ? true : hasCommunity(a, communityFilter);
-      return matchesSearch && matchesStatus && matchesLocation && matchesCommunity;
+      const matchesCluster = hasCluster(a, clusterFilter);
+      const approvedForCluster = clusterFilter === "All" || String(status).toLowerCase() === "approved";
+      return matchesSearch && matchesStatus && matchesLocation && matchesCommunity && matchesCluster && approvedForCluster;
     });
 
     return filteredApps.slice().sort((a, b) => {
@@ -1476,6 +1569,9 @@
       "State",
       "LGA",
       "Community",
+      "Cluster",
+      "Cluster Member No.",
+      "Cluster Village",
       "District",
       "Postal Code",
       "Address",
@@ -1501,6 +1597,9 @@
         rec.stateName || rec.StateName || rec.state || rec.State || "Yobe",
         parseRecordLgas(rec).join(", "),
         parseRecordCommunity(rec),
+        rec.clusterName || "",
+        rec.clusterMemberNo || "",
+        rec.clusterVillage || "",
         rec.district || rec.District || "",
         rec.postalCode || rec.PostalCode || "",
         rec.address || rec.Address || "",
@@ -1860,7 +1959,7 @@
   function hydrateLocal(opts) {
     const options = opts || {};
     if (!options.skipApplications) {
-      state.applications = safeArray(lsGet(LS_KEYS.artisans, []));
+      state.applications = safeArray(lsGet(LS_KEYS.artisans, [])).map(applyClusterAssignment);
     }
     if (!options.skipExitLogs) {
       state.exitLogs = safeArray(lsGet(LS_KEYS.exitLogs, []));
@@ -1946,6 +2045,7 @@
 
       state.applications = Array.from(merged.values())
         .filter((x) => x && x.id)
+        .map(applyClusterAssignment)
         .sort((a, b) => {
           return b.id && a.id ? String(b.id).localeCompare(String(a.id)) : 0;
         });
@@ -2966,10 +3066,17 @@
   window.setAdminLocationFilter = function (val) {
     state.adminLocationFilter = val || "All";
     state.adminCommunityFilter = "All";
+    state.adminClusterFilter = "All";
     render();
   };
   window.setAdminCommunityFilter = function (val) {
     state.adminCommunityFilter = val || "All";
+    state.adminClusterFilter = "All";
+    render();
+  };
+  window.setAdminClusterFilter = function (val) {
+    state.adminClusterFilter = val || "All";
+    if (state.adminClusterFilter !== "All") state.adminStatusFilter = "Approved";
     render();
   };
   window.setAdminSortMode = function (val) {
@@ -2982,6 +3089,7 @@
     const parts = [
       state.adminLocationFilter && state.adminLocationFilter !== "All" ? state.adminLocationFilter : "All LGAs",
       state.adminCommunityFilter && state.adminCommunityFilter !== "All" ? state.adminCommunityFilter : "All Communities",
+      state.adminClusterFilter && state.adminClusterFilter !== "All" ? state.adminClusterFilter : "All Clusters",
       state.adminStatusFilter && state.adminStatusFilter !== "All" ? state.adminStatusFilter : "All Status",
     ];
     downloadMinerReport(rows, parts.join(" - "));
@@ -3063,11 +3171,17 @@
   window.setMDLgaFilter = function (val) {
     state.mdFilterLga = val || "All";
     state.mdFilterCommunity = "All";
+    state.mdFilterCluster = "All";
     render();
   };
 
   window.setMDCommunityFilter = function (val) {
     state.mdFilterCommunity = val || "All";
+    state.mdFilterCluster = "All";
+    render();
+  };
+  window.setMDClusterFilter = function (val) {
+    state.mdFilterCluster = val || "All";
     render();
   };
 
@@ -3075,17 +3189,21 @@
     const mdSearch = state.mdSearch || "";
     const mdLga = state.mdFilterLga || "All";
     const mdCommunity = state.mdFilterCommunity || "All";
+    const mdCluster = state.mdFilterCluster || "All";
     const rows = state.applications.filter((a) => {
       const byLga = mdLga === "All" || hasLga(a, mdLga);
       const byCommunity = mdCommunity === "All" || hasCommunity(a, mdCommunity);
+      const byCluster = hasCluster(a, mdCluster);
+      const approvedForCluster = mdCluster === "All" || String(a.status || '').toLowerCase() === 'approved';
       const bySearch =
         String(a.name || "").toLowerCase().includes(mdSearch) ||
         String(a.id || "").toLowerCase().includes(mdSearch);
-      return byLga && byCommunity && bySearch;
+      return byLga && byCommunity && byCluster && approvedForCluster && bySearch;
     });
     const parts = [
       mdLga !== "All" ? mdLga : "All LGAs",
       mdCommunity !== "All" ? mdCommunity : "All Communities",
+      mdCluster !== "All" ? mdCluster : "All Clusters",
     ];
     downloadMinerReport(rows, parts.join(" - "));
   };
@@ -3633,6 +3751,50 @@
   window.refreshMDNow = function () {
     const appsPromise = loadApplications({ silent: true }).then(render);
     Promise.all([appsPromise, loadExitLogs()]).then(() => loadMDData());
+  };
+
+  window.syncMiningClassifications = async function () {
+    if (state.currentUserRole !== "md" || !state.auth.pin) {
+      uiAlert("Executive authorisation is required.");
+      return;
+    }
+    const confirmed = await uiConfirm(
+      "This will permanently write the 1,050 cluster assignments and safe Manawaji community classifications to the Artisans sheet. Continue?",
+      "Sync classifications",
+      "Sync now",
+      "Cancel"
+    );
+    if (!confirmed) return;
+
+    const source = window.YMDCL_CLUSTER_ASSIGNMENTS || {};
+    const assignments = Object.keys(source).map((id) => ({ id, ...source[id] }));
+    if (!assignments.length) {
+      uiAlert("The cluster assignment file is unavailable.");
+      return;
+    }
+
+    state.isLoading = true;
+    render();
+    try {
+      const result = await callBackend({
+        action: "syncMiningClassifications",
+        pin: state.auth.pin,
+        assignments,
+      });
+      if (!result || result.result !== "success") {
+        throw new Error(result?.error || "Classification sync failed.");
+      }
+      await loadApplications({ silent: true });
+      uiAlert(
+        `Sync complete: ${result.clusterUpdated || 0} cluster assignments and ${result.communityUpdated || 0} community updates. ${result.manualReview || 0} records require manual confirmation.`,
+        "Classifications synced"
+      );
+    } catch (error) {
+      uiAlert(String(error?.message || error || "Classification sync failed."), "Sync failed");
+    } finally {
+      state.isLoading = false;
+      render();
+    }
   };
 
   window.logout = function () {
@@ -5296,9 +5458,11 @@
     const statusFilter = String(state.adminStatusFilter || "All");
     const locationFilter = String(state.adminLocationFilter || "All");
     const communityFilter = String(state.adminCommunityFilter || "All");
+    const clusterFilter = String(state.adminClusterFilter || "All");
     const sortMode = String(state.adminSortMode || "pendingFirst");
     const sortedApps = getFilteredAdminApps();
     const adminCommunities = getCommunitiesForLga(locationFilter, state.applications);
+    const adminClusters = getClustersForFilters(state.applications, locationFilter, communityFilter);
     const pendingCount = state.applications.filter((a) => (a.status || "Pending") === "Pending").length;
     const currentLgaTotal =
       locationFilter === "All" ? state.applications.length : state.applications.filter((a) => hasLga(a, locationFilter)).length;
@@ -5465,6 +5629,15 @@
         })
         .join("") +
       "</select>" +
+      '<select onchange="setAdminClusterFilter(this.value)" class="w-full md:w-44 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500' +
+      (!['Gulani', 'Gujba'].includes(locationFilter) ? " opacity-60" : "") +
+      '"' + (!['Gulani', 'Gujba'].includes(locationFilter) ? " disabled" : "") + ">" +
+      '<option value="All"' + (clusterFilter === "All" ? " selected" : "") + ">All Clusters</option>" +
+      adminClusters.map(function (cluster) {
+        const count = countClusterMembers(state.applications, cluster, locationFilter, communityFilter);
+        return '<option value="' + escHtml(cluster) + '"' + (clusterFilter === cluster ? " selected" : "") + '>' + escHtml(cluster) + ' (' + count + ')</option>';
+      }).join("") +
+      "</select>" +
       '<select onchange="setAdminSortMode(this.value)" class="w-full md:w-44 px-2 py-2 text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">' +
       '<option value="pendingFirst"' +
       (sortMode === "pendingFirst" ? " selected" : "") +
@@ -5549,6 +5722,9 @@
             (parseRecordLgas(a).join(", ") || a.location || a.lga || "—") +
             (parseRecordCommunity(a)
               ? '<div class="text-[10px] text-gray-500 mt-1">Community: ' + escHtml(parseRecordCommunity(a)) + "</div>"
+              : "") +
+            (a.clusterName
+              ? '<div class="text-[10px] text-emerald-700 mt-1">' + escHtml(a.clusterName) + ' • Member ' + escHtml(a.clusterMemberNo) + '</div>'
               : "") +
             "</td>" +
             '<td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs font-bold ' +
@@ -5730,7 +5906,9 @@
     const mdSearch = state.mdSearch || "";
     const mdLga = state.mdFilterLga || "All";
     const mdCommunity = state.mdFilterCommunity || "All";
+    const mdCluster = state.mdFilterCluster || "All";
     const mdCommunities = getCommunitiesForLga(mdLga, state.applications);
+    const mdClusters = getClustersForFilters(state.applications, mdLga, mdCommunity);
 
     const lgaCounts = LGAs.reduce((acc, l) => {
       acc[l] = 0;
@@ -5745,10 +5923,12 @@
     const filteredArtisans = state.applications.filter((a) => {
       const byLga = mdLga === "All" || hasLga(a, mdLga);
       const byCommunity = mdCommunity === "All" || hasCommunity(a, mdCommunity);
+      const byCluster = hasCluster(a, mdCluster);
+      const approvedForCluster = mdCluster === "All" || String(a.status || '').toLowerCase() === 'approved';
       const bySearch =
         String(a.name || "").toLowerCase().includes(mdSearch) ||
         String(a.id || "").toLowerCase().includes(mdSearch);
-      return byLga && byCommunity && bySearch;
+      return byLga && byCommunity && byCluster && approvedForCluster && bySearch;
     });
     const mdLgaTotal =
       mdLga === "All" ? state.applications.length : state.applications.filter((a) => hasLga(a, mdLga)).length;
@@ -5781,6 +5961,9 @@
               <div class="flex items-center space-x-4">
                 <button onclick="refreshMDNow()" class="hidden md:flex items-center gap-2 text-xs bg-gray-100 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-200 transition text-gray-700 font-bold">
                   ${Icon("refresh-cw","w-4 h-4")} Refresh Now
+                </button>
+                <button onclick="syncMiningClassifications()" class="hidden md:flex items-center gap-2 text-xs bg-emerald-700 px-3 py-2 rounded-xl hover:bg-emerald-800 transition text-white font-bold">
+                  ${Icon("database","w-4 h-4")} Sync classifications
                 </button>
 
                 <div class="text-right hidden md:block">
@@ -5939,9 +6122,14 @@
                       <option value="All"${mdCommunity==='All'?' selected':''}>${mdLga === "All" ? "Select LGA first" : "All Communities"}</option>
                       ${mdCommunities.map(c => `<option value="${escHtml(c)}"${mdCommunity===c?' selected':''}>${escHtml(c)}</option>`).join('')}
                     </select>
+                    <select onchange="setMDClusterFilter(this.value)" class="px-3 py-2 border border-gray-300 rounded-xl text-xs ${!['Gulani', 'Gujba'].includes(mdLga) ? "opacity-60" : ""}" ${!['Gulani', 'Gujba'].includes(mdLga) ? "disabled" : ""}>
+                      <option value="All"${mdCluster==='All'?' selected':''}>All Clusters</option>
+                      ${mdClusters.map(c => `<option value="${escHtml(c)}"${mdCluster===c?' selected':''}>${escHtml(c)} (${countClusterMembers(state.applications, c, mdLga, mdCommunity)})</option>`).join('')}
+                    </select>
                     <button onclick="downloadMDMinerReport()" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-amber-950 px-3 py-2 rounded-xl text-xs font-black">
                       ${Icon("file-spreadsheet","w-4 h-4")} Excel Report
                     </button>
+                    <a href="manawaji-community-review.csv" download class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-black">${Icon("clipboard-check","w-4 h-4")} Manawaji Review</a>
                     <div class="text-xs font-bold text-gray-700">Filtered: ${filteredArtisans.length}${mdLga !== "All" ? ` • ${mdLga}: ${mdLgaTotal}` : ""}</div>
                   </div>
                 </div>
@@ -5974,7 +6162,7 @@
                               <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3 font-mono text-xs font-bold text-gray-500">${idx + 1}</td>
                                 <td class="px-4 py-3">${a.name || '—'}</td>
-                                <td class="px-4 py-3">${parseRecordLgas(a).join(", ") || a.location || a.lga || '—'}${parseRecordCommunity(a) ? `<div class="text-[10px] text-gray-500 mt-1">Community: ${escHtml(parseRecordCommunity(a))}</div>` : ""}</td>
+                                <td class="px-4 py-3">${parseRecordLgas(a).join(", ") || a.location || a.lga || '—'}${parseRecordCommunity(a) ? `<div class="text-[10px] text-gray-500 mt-1">Community: ${escHtml(parseRecordCommunity(a))}</div>` : ""}${a.clusterName ? `<div class="text-[10px] text-emerald-700 mt-1">${escHtml(a.clusterName)} • Member ${escHtml(a.clusterMemberNo)}</div>` : ""}</td>
                                 <td class="px-4 py-3">${parseRecordMinerals(a).join(", ") || a.mineral || '—'}</td>
                                 <td class="px-4 py-3 text-xs ${hasGps ? 'text-emerald-700 font-bold' : 'text-gray-400'}">
                                   ${gpsLabel}
@@ -6236,13 +6424,16 @@
         const mdSearch = state.mdSearch || "";
         const mdLga = state.mdFilterLga || "All";
         const mdCommunity = state.mdFilterCommunity || "All";
+        const mdCluster = state.mdFilterCluster || "All";
         const filteredArtisans = state.applications.filter((a) => {
           const byLga = mdLga === "All" || hasLga(a, mdLga);
           const byCommunity = mdCommunity === "All" || hasCommunity(a, mdCommunity);
+          const byCluster = hasCluster(a, mdCluster);
+          const approvedForCluster = mdCluster === "All" || String(a.status || '').toLowerCase() === 'approved';
           const bySearch =
             String(a.name || "").toLowerCase().includes(mdSearch) ||
             String(a.id || "").toLowerCase().includes(mdSearch);
-          return byLga && byCommunity && bySearch;
+          return byLga && byCommunity && byCluster && approvedForCluster && bySearch;
         });
 
         updateMDMapMarkers(filteredArtisans, state.md.staffLatest || []);
