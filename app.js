@@ -3596,7 +3596,7 @@
     const verification = await verifyAccountPinWithServer(pin);
     if (!verification || verification.serverError) {
       uiAlert(
-        "PIN verification endpoint is unavailable. Please update/deploy Google Script with verifyPin/setPin actions."
+        "PIN verification endpoint is unavailable."
       );
       state.authSigningIn = false;
       if (btn) {
