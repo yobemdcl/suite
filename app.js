@@ -743,6 +743,18 @@
     return (letters || "ART").slice(0, 3);
   }
 
+  function alignRecordIdWithCommunity(rec) {
+    if (!rec) return rec;
+    const community = parseRecordCommunity(rec);
+    if (!community || !isSpecialCommunitySelection(community)) return rec;
+    const currentId = extractRecordId(rec);
+    const match = String(currentId || "").match(/^[A-Z]{3}-(\d{6})$/);
+    if (!match) return rec;
+    const correctedId = communityIdPrefix(community) + "-" + match[1];
+    if (correctedId === currentId) return rec;
+    return { ...rec, id: correctedId, previousId: rec.previousId || currentId };
+  }
+
   function makeEmptyFormData() {
     return {
       name: "",
@@ -1222,10 +1234,17 @@
     return extractArtisanId(pickFirst(rec, ["id", "ID", "Id", "artisanId", "ArtisanId"]));
   }
 
+  function recordMatchesId(rec, id) {
+    const target = extractArtisanId(id);
+    if (!target) return false;
+    return extractRecordId(rec) === target ||
+      extractArtisanId(pickFirst(rec, ["previousId", "PreviousId"])) === target;
+  }
+
   function pickBestById(rows, id) {
     const target = extractArtisanId(id);
     if (!target) return null;
-    const matches = safeArray(rows).filter((r) => extractRecordId(r) === target);
+    const matches = safeArray(rows).filter((r) => recordMatchesId(r, target));
     return pickBestRecord(matches);
   }
 
@@ -1363,9 +1382,10 @@
     const migrated = applySafeManawajiClassification(rec);
     const id = extractRecordId(migrated);
     const assignment = window.YMDCL_CLUSTER_ASSIGNMENTS?.[id];
-    return assignment
+    const enriched = assignment
       ? { ...migrated, ...assignment, clusterAssignedAt: assignment.clusterAssignedAt || '2026-06-27' }
       : migrated;
+    return alignRecordIdWithCommunity(enriched);
   }
 
   const GULANI_RECLASSIFICATION_NAMES = [
@@ -1699,7 +1719,8 @@
     const opts = options || {};
     const id = String(rec.id || "").toUpperCase();
     const name = String(rec.name || "Artisan").toUpperCase();
-    const lga = parseRecordLgas(rec).join(", ") || rec.location || rec.lga || "—";
+    const lga = [parseRecordCommunity(rec), parseRecordLgas(rec).join(", ")]
+      .filter(Boolean).join(", ") || rec.location || rec.lga || "—";
     const mineral = parseRecordMinerals(rec).join(", ") || rec.mineral || "—";
     const expiry = formatDate(getRecordExpiryDate(rec));
     let photo = opts.skipPhoto ? "" : resolvePhotoFromRecord(rec, "");
@@ -2043,9 +2064,12 @@
         if (a && a.id) merged.set(String(a.id), a);
       });
 
-      state.applications = Array.from(merged.values())
-        .filter((x) => x && x.id)
-        .map(applyClusterAssignment)
+      const normalizedById = new Map();
+      Array.from(merged.values()).forEach((record) => {
+        const normalized = applyClusterAssignment(record);
+        if (normalized && normalized.id) normalizedById.set(String(normalized.id), normalized);
+      });
+      state.applications = Array.from(normalizedById.values())
         .sort((a, b) => {
           return b.id && a.id ? String(b.id).localeCompare(String(a.id)) : 0;
         });
@@ -2563,9 +2587,10 @@
         return;
       }
 
-      state.searchResult = d;
-      hydrateFormFromRecord(d);
-      state.generatedId = pickFirst(d, ["id", "ID", "Id"]) || idCandidate;
+      const normalized = applyClusterAssignment(d);
+      state.searchResult = normalized;
+      hydrateFormFromRecord(normalized);
+      state.generatedId = pickFirst(normalized, ["id", "ID", "Id"]) || idCandidate;
       const expRaw = pickFirst(d, ["expiryDate", "ExpiryDate", "expiry", "Expiry"]);
       state.expiryDate = expRaw ? new Date(expRaw) : addYears(1);
 
@@ -3596,7 +3621,7 @@
     const verification = await verifyAccountPinWithServer(pin);
     if (!verification || verification.serverError) {
       uiAlert(
-        "PIN verification endpoint is unavailable."
+        "PIN verification endpoint is unavailable. Please update/deploy Google Script with verifyPin/setPin actions."
       );
       state.authSigningIn = false;
       if (btn) {
@@ -4003,10 +4028,12 @@
     host.style.position = "fixed";
     host.style.left = "-10000px";
     host.style.top = "0";
+    const cardLocation = [parseRecordCommunity(rec), parseRecordLgas(rec).join(", ")]
+      .filter(Boolean).join(", ") || rec.location || rec.lga || "—";
     host.innerHTML = renderIDCard(
       rec.id || id,
       rec.name || "Artisan",
-      parseRecordLgas(rec).join(", ") || rec.location || rec.lga || "—",
+      cardLocation,
       parseRecordMinerals(rec).join(", ") || rec.mineral || "—",
       getRecordExpiryDate(rec),
       resolvePhotoFromRecord(rec, ASSETS.miningLogo) || ASSETS.miningLogo
@@ -6276,6 +6303,8 @@
     if (!a) return "";
 
     const qrText = String(a.id || "").toUpperCase();
+    const cardLocation = [parseRecordCommunity(a), parseRecordLgas(a).join(", ")]
+      .filter(Boolean).join(", ") || a.location || a.lga || "—";
 
     const card =
       '<div class="relative w-[300px] h-[480px] bg-gradient-to-br from-green-800 to-green-950 rounded-xl shadow-2xl overflow-hidden text-white flex flex-col items-center pt-6 pb-4 px-4 border border-yellow-500/30 mx-auto">' +
@@ -6295,7 +6324,7 @@
       (a.name || "—") +
       "</h2>" +
       '<p class="text-xs text-green-300 uppercase">' +
-      (a.location || a.lga || "—") +
+      cardLocation +
       " LGA</p>" +
       '<div class="bg-white/10 rounded p-1 flex justify-between items-center text-[10px] border border-white/10 mt-2">' +
       '<div class="text-left"><div>Mineral</div><div class="font-bold text-yellow-300">' +
