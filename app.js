@@ -229,13 +229,33 @@
   async function callBackend(payload) {
     if (!GOOGLE_SCRIPT_URL) return null;
     try {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
+      const response = await fetch(GOOGLE_SCRIPT_URL + "?t=" + Date.now(), {
         method: "POST",
+        redirect: "follow",
+        cache: "no-store",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
       });
-      const json = await response.json();
-      return json;
+      const text = await response.text();
+      const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+      if (!response.ok) {
+        const isHtml = /^\s*</.test(text) || contentType.includes("text/html");
+        const message = isHtml
+          ? "Backend returned a Google HTML error page. Reopen/redeploy the Apps Script web app URL."
+          : (text || "Backend request failed.");
+        console.error("Backend HTTP Error:", response.status, message);
+        return { result: "error", error: message, status: response.status };
+      }
+      try {
+        return JSON.parse(text);
+      } catch (parseError) {
+        const isHtml = /^\s*</.test(text) || contentType.includes("text/html");
+        const message = isHtml
+          ? "Backend returned HTML instead of JSON. The Apps Script deployment URL may be stale or the redirect failed."
+          : "Backend returned invalid JSON.";
+        console.error("Backend JSON Error:", message, text.slice(0, 300));
+        return { result: "error", error: message };
+      }
     } catch (error) {
       console.error("Backend Error:", error);
       return { result: "error", error: "Connection failed" };
